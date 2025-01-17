@@ -24,17 +24,77 @@ Add achievement badges for users based on their activity (e.g., "Top Seller," "E
 Enable NFTs to act as access passes for events, platforms, or exclusive content.
 */
 
-import {TokenInterface} from "./Interface/TokenInterface.sol";
+import {INFT} from "./Interface/INFT.sol";
+import {NFT} from "./NFT.sol";  
+
+
+
 
 contract NftMarketplace {
-    constructor() 
-     {
-      
+
+  ////////////////////
+  // STATE VARIABLE//
+  //////////////////
+
+    uint256 public ItemId;
+    address nftContract; 
+
+   
+
+
+
+     //////////////////
+    // ERRORS       //
+    /////////////////
+
+    error NftMarketplace__PriceIsZero(uint price);
+    error NftMarketplace__DidNotApproved(address marketplace);
+    error NftMarketplace__NotTheOwner(address another);
+
+   
+
+    /////////////////
+    // MAPPING     //
+    /////////////////
+
+    //mapping for the id and the MarketItem struct
+    mapping (uint256 => MarketItem) idToMarketItem;
+
+    //////////////////
+    // STRUCT      //
+    /////////////////
+     
+    /* 
+    creating a struct for the marketitem, which is nft in the  marketplace
+    */ 
+    struct MarketItem {
+      uint256 id;
+    address payable sellerOrOwner;
+    address buyer;
+    uint256 royalityForCreator;
+    uint256 price;
+    bool sold;
+
     }
 
-    function createNft(string memory name) public returns (uint256 ) {
+    MarketItem[] public marketItems;
 
-        
+    constructor(address _NftContract) 
+     {
+      nftContract = _NftContract;
+    }
+
+
+    //not complete i think this has some problem
+    function ApproveForcreateMarketItem(uint256 tokenId) public  {
+      address owner = INFT(nftContract).ownerOf(tokenId);
+      if (owner!= msg.sender) {
+        revert NftMarketplace__NotTheOwner(msg.sender);
+      }
+
+      if (INFT(nftContract).getApproved(tokenId) != address(this)) {
+        INFT(nftContract).approve(address(this),tokenId);
+      }
     }
 
 }
