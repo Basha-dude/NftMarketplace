@@ -53,7 +53,7 @@ contract NFT is ERC721URIStorage,Pausable,INFTEvents {
      return tokenCount.current();
        }
 
-
+ 
 function getTokenId() public view returns (uint) {
     return tokenCount.current(); 
 }
