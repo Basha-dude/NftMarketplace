@@ -11,7 +11,7 @@ describe("DEPLOYMENT", async () => {
   /////////////
   //  LET    //
   ////////////
-  let deployer,user,nft,nftMarketplace
+  let deployer,user,nft,nftMarketplace,mockV3Aggregator
 
 
   /////////////
@@ -24,14 +24,19 @@ describe("DEPLOYMENT", async () => {
   const price = ethers.parseEther("10")
   const royality1 = 2 
   const price1 = 2
+  const DECIMALS = 8;
+  const ETH_USD_PRICE = 200000000000;
+  const priceForUsd = 4000
 
   before( async ()=> {
     const NFT = await ethers.getContractFactory("NFT")
          nft = await NFT.deploy();
         [deployer,user]  = await ethers.getSigners()
-    
+        const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
+        mockV3Aggregator = await MockV3Aggregator.connect(deployer).deploy(DECIMALS,ETH_USD_PRICE);
+  
         const NftMarketplace = await ethers.getContractFactory("NftMarketplace")
-        nftMarketplace = await NftMarketplace.deploy(nft.target)
+        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target)
 })
 
 
@@ -50,11 +55,13 @@ describe("DEPLOYMENT", async () => {
    })
 
    it("testing the MINT and its EVENTS ",async  ()=>{
-     const Tx =  await nft.mint(tokenURI)
+     const Tx =  await nft.connect(deployer).mint(tokenURI)
      const TxReceipt = await Tx.wait()
      //second event is logs[1],first event is logs[0]
-     const logs  = TxReceipt.logs[1];
+     const logs  = TxReceipt.logs[2];
        const args = logs.args
+      
+       
 
        //tested getter
      let id =  await nft.getTokenId()
@@ -91,15 +98,16 @@ describe("DEPLOYMENT", async () => {
           const YorN2 = await nftMarketplace.VerifyTheApproved(1)
           expect(YorN2).to.be.equal(false)
     })
-    it("testing the createMarketItem in marketplace",async() => {           
-      const fee = await nftMarketplace.calculateMarketFee(price1,royality1)
-      console.log("fee",fee);
-      await nftMarketplace.connect(deployer).createMarketItem(1,price1,royality1,{value: ethers.parseUnits("0.04")})
-      const Array = await nftMarketplace.getmarketItemsLength()
-      console.log(Array);
+    it("testing the createMarketItem in marketplace for eth",async() => {           
+      const fee = await nftMarketplace.calculateMarketFeeForEth(price1,royality1)
+      console.log("fee for the ETH",fee);
+
+      await nftMarketplace.connect(deployer).createMarketItem(1,price1,royality1,false,{value: ethers.parseUnits("0.04")})
+      const Array = await nftMarketplace.getmarketItemsLength() 
       
       expect(Array).to.be.equal(1)
 })
+
 
          it("testing the mapping  in marketplace",async() => {           
         const Array = await nftMarketplace.getidToMarketItem(1)
@@ -117,6 +125,20 @@ describe("DEPLOYMENT", async () => {
   
            })
    
+           it("testing the createMarketItem in marketplace for usd",async() => {   
+            const Tx =  await nft.connect(deployer).mint(tokenURI)
+            const TxReceipt = await Tx.wait()
+            await nft.connect(deployer).approve(nftMarketplace.target,2)
+
+
+            const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
+            console.log("fee for the usd",fee);
+            
+            await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseUnits("0.04")})
+            const Array = await nftMarketplace.getmarketItemsLength()
+            
+            expect(Array).to.be.equal(2)
+      })
 
     })
   

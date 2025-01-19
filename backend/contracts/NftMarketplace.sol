@@ -27,6 +27,11 @@ Enable NFTs to act as access passes for events, platforms, or exclusive content.
 import {INFT} from "./Interface/INFT.sol";
 import {NFT} from "./NFT.sol";  
 
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+
+
+
 /* 
 1.re-entrancy gaurd
 
@@ -44,6 +49,8 @@ contract NftMarketplace {
     address nftContract; 
     uint PRECISION = 1e18;
     uint256 PERCENT = 100;
+    AggregatorV3Interface  priceFeed;
+    uint ADDITIONAL_PRECISION = 1e10;
 
    
      //////////////////
@@ -78,15 +85,17 @@ contract NftMarketplace {
     address buyer;
     uint256 royalityForCreator;
     uint256 price;
+    bool isUsd;
     bool sold;
 
     }
 
     MarketItem[] public marketItems;
 
-    constructor(address _NftContract) 
+    constructor(address _NftContract, address _priceFeed) 
      {
       nftContract = _NftContract;
+      priceFeed = AggregatorV3Interface(_priceFeed);
     }
 
 
@@ -103,10 +112,24 @@ contract NftMarketplace {
 
 
   // add pricefeed to buy this using the usd 
-  function createMarketItem(uint256 tokenId,uint256 _royalityForCreator,uint256 _price) public payable  returns(uint256) {
+  function createMarketItem(uint256 tokenId,uint256 _price,uint256 _royalityForCreator,bool isUsd) public payable  returns(uint256) {
    address  owner = INFT(nftContract).ownerOf(tokenId);
-   uint fee = calculateMarketFee(_price,_royalityForCreator);
-   require(msg.value >= fee , "pay the fee");
+   if (isUsd) {
+    console.log("logged ito the usd");   
+  uint feeForPriceInUSD =  calculateMarketFeeForUsd(_price,_royalityForCreator);
+    require(msg.value >= feeForPriceInUSD , "pay the fee for price in usd");
+
+   } else {
+    console.log("logged ito the ETH");   
+
+    uint feeForPriceInEth = calculateMarketFeeForEth(_price,_royalityForCreator);
+    console.log("feeForPriceInEth from the contract",feeForPriceInEth);   
+    console.log("price from the contract IN ETH",_price);
+    console.log("royality from the contract IN ETH",_royalityForCreator);          
+
+    require(msg.value >= feeForPriceInEth , "pay the fee for price in eth");
+   }
+ 
    if (owner != msg.sender) {
        revert  NftMarketplace__NotTheOwner(msg.sender);
 
@@ -128,6 +151,7 @@ if (_royalityForCreator <= 0) {
           address(0),
           _royalityForCreator,
           _price,
+          isUsd,
           false
         );
       
@@ -145,7 +169,7 @@ if (_royalityForCreator <= 0) {
  ///@param royality royality of the nft
  /// @return fee to pay 
 
-  function calculateMarketFee(uint price,uint royality) public view returns(uint256)  {
+  function calculateMarketFeeForEth(uint price,uint royality) public view returns(uint256)  {
                                 //10  *  1e18
        uint256 PriceInEther =  price * PRECISION;
               //  console.log("PriceInEther from contract",PriceInEther);
@@ -156,6 +180,46 @@ if (_royalityForCreator <= 0) {
       uint fee = (PriceInEther * royality) / PERCENT;
       return fee;
 
+  }
+
+
+  //some problem in this code
+  function calculateMarketFeeForUsd(uint price,uint royality) public view returns(uint256) {
+   (,int256 answer,,,)= priceFeed.latestRoundData(); //200_000_000_000 
+    
+    // answer in usd for eth 
+    /* 
+    e.x. 1 ETH = $2000  
+         4000/2000 = 2
+     */
+    console.log("price from the contract",price);
+    console.log("royality from the contract",royality);
+    console.log("answer from the contract",uint(answer)); //200_000_000_000
+    uint256 answerInUsd = uint(answer) * ADDITIONAL_PRECISION; //2_000_000_000_000_000_000_000
+    
+    console.log("answerInUsd from the contract",answerInUsd); //2_000_000_000_000_000_000_000
+    console.log("uint(answer) * ADDITIONAL_PRECISION",uint(answer) * ADDITIONAL_PRECISION);//2_000_000_000_000_000_000_000
+
+    uint256 priceToEthDecimal = price * PRECISION;
+    console.log("price * PRECISION",price * PRECISION); //2_000_000_000_000_000_000
+    console.log("priceToEthDecimal",priceToEthDecimal);  //2 000 000 000 000 000 000
+
+          // 4_000_000_000_000_000_000_000 /
+          // 2_000_000_000_000_000_000_000
+          console.log("priceToEthDecimal",priceToEthDecimal);  
+          console.log("answerInUsd from the contract",answerInUsd); 
+                     //priceToEthDecimal             2_000_000_000_000_000_000
+                     //answerInUsd from the contract 2_000_000_000_000_000_000_000
+       uint256 eth =   priceToEthDecimal /answerInUsd ; //0
+      console.log("eth",eth);
+                            
+        uint fee = (eth * royality * PRECISION) / PERCENT;
+        console.log("eth * royality * PRECISION)",(eth * royality * PRECISION));
+
+        console.log("fee from the contract usd",fee );
+
+        return fee;
+           
   }
         
    ///////////////////
@@ -181,6 +245,9 @@ if (_royalityForCreator <= 0) {
     }
     function getidToMarketItem(uint tokendId) public view returns(MarketItem memory) {
                return idToMarketItem[tokendId];
+    }
+    function getpriceFeed() public view returns(address) {
+       return address(priceFeed); 
     }
 }
 
