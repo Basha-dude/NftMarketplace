@@ -102,14 +102,26 @@ describe("DEPLOYMENT", async () => {
       const fee = await nftMarketplace.calculateMarketFeeForEth(price1,royality1)
       console.log("fee for the ETH",fee);
 
-      await nftMarketplace.connect(deployer).createMarketItem(1,price1,royality1,false,{value: ethers.parseUnits("0.04")})
-      const Array = await nftMarketplace.getmarketItemsLength() 
+     const Tx = await nftMarketplace.connect(deployer).createMarketItem(1,price1,royality1,false,{value: ethers.parseUnits("0.04")})
+     const TxReceipt = await Tx.wait()
+       const logs = TxReceipt.logs[0]
+      const args = logs.args
+      expect(args[0]).to.be.equal(BigInt(1))
+      expect(args[1]).to.be.equal(BigInt(1))
+      expect(args[2]).to.be.equal(deployer.address)
+      expect(args[3]).to.be.equal("0x0000000000000000000000000000000000000000")
+      expect(args[4]).to.be.equal(BigInt(2))
+      expect(args[5]).to.be.equal(BigInt(2))
+      expect(args[6]).to.be.equal(false)
+      expect(args[7]).to.be.equal(false)
+      const Array = await nftMarketplace.getAllMarketItems() 
+      console.log("ARRAY",Array);
       
-      expect(Array).to.be.equal(1)
+      
+      // expect(Array).to.be.equal(1)
+
 })
-
-
-         it("testing the mapping  in marketplace",async() => {           
+    it("testing the mapping  in marketplace",async() => {           
         const Array = await nftMarketplace.getidToMarketItem(1)
         expect(Array[0]).to.be.equal(BigInt(1))
            expect(Array[1]).to.be.equal(BigInt(1))
@@ -118,11 +130,6 @@ describe("DEPLOYMENT", async () => {
            expect(Array[4]).to.be.equal(BigInt(2))
            expect(Array[5]).to.be.equal(BigInt(2))
            expect(Array[6]).to.be.equal(false)
-
-
-
-
-  
            })
    
            it("testing the createMarketItem in marketplace for usd",async() => {   
@@ -134,11 +141,79 @@ describe("DEPLOYMENT", async () => {
             const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
             console.log("fee for the usd",fee);
             
-            await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseUnits("0.04")})
-            const Array = await nftMarketplace.getmarketItemsLength()
+            const TxCreate =  await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseUnits("0.04")})
+            const TxCreateReceipt = await TxCreate.wait()
+            const logs = TxCreateReceipt.logs[0]
+            const args = logs.args
+            expect(args[0]).to.be.equal(BigInt(2))
+            expect(args[1]).to.be.equal(BigInt(2))
+            expect(args[2]).to.be.equal(deployer.address)
+            expect(args[3]).to.be.equal("0x0000000000000000000000000000000000000000")
+            expect(args[4]).to.be.equal(BigInt(2))
+            expect(args[5]).to.be.equal(BigInt(4000))
+            expect(args[6]).to.be.equal(true)
+            expect(args[7]).to.be.equal(false)
             
-            expect(Array).to.be.equal(2)
+            const getAllMarketItems = await nftMarketplace.getAllMarketItems();
+            console.log("getAllMarketItems from the test",getAllMarketItems);
+
+            
+
+                 
+            // // Add these new assertions
+            expect(getAllMarketItems.length).to.equal(2);
+            
+         
+           
       })
+
+      it("it should revert when the price createMarketItem in marketplace for usd is 0", async () =>{
+        await expect(nftMarketplace.createMarketItem(2,0,royality1,true,{value: ethers.parseUnits("0.04")})).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__PriceIsZero")
+
+      })
+      it("it should revert when  the royality of createMarketItem in marketplace for usd is 0", async () =>{
+        await expect(nftMarketplace.createMarketItem(2,priceForUsd,0,true,{value: ethers.parseUnits("0.04")})).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__RoyalityCreator")
+
+      })
+      it("it should revert when  the fee of createMarketItem in marketplace for eth is 0", async () =>{
+        await expect(
+          nftMarketplace.createMarketItem(2,price,royality1,false,{value: 0 })
+      ).to.be.revertedWith("pay the fee for price in eth")
+
+      })
+
+      it("it should revert when  the fee of createMarketItem in marketplace for usd is 0", async () =>{
+        await expect(
+          nftMarketplace.createMarketItem(2,priceForUsd,royality1,true,{value: 0 })
+      ).to.be.revertedWith("pay the fee for price in usd")
+
+      })
+      it("it should test getAllMarketItems",async()=>{
+        let ArrayStwo = await nftMarketplace.getAllMarketItems() 
+        let Array = ArrayStwo[0]
+        console.log("ARRAY",Array);
+        expect(Array[0]).to.be.equal(1)
+        expect(Array[1]).to.be.equal(1)
+        expect(Array[2]).to.be.equal(deployer.address)
+        expect(Array[3]).to.be.equal("0x0000000000000000000000000000000000000000")
+        expect(Array[4]).to.be.equal(2)
+        expect(Array[5]).to.be.equal(2)
+        expect(Array[6]).to.be.equal(false)
+
+        Array = ArrayStwo[1]
+        console.log("ARRAY 2",Array);
+
+        expect(Array[0]).to.be.equal(2)
+        expect(Array[1]).to.be.equal(2)
+        expect(Array[2]).to.be.equal(deployer.address)
+        expect(Array[3]).to.be.equal("0x0000000000000000000000000000000000000000")
+        expect(Array[4]).to.be.equal(2)
+        expect(Array[5]).to.be.equal(4000)
+        expect(Array[6]).to.be.equal(true)
+
+      })
+
+    })
 
     })
   
@@ -146,4 +221,3 @@ describe("DEPLOYMENT", async () => {
 
         
  
-});

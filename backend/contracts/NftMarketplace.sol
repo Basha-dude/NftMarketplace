@@ -28,6 +28,7 @@ import {INFT} from "./Interface/INFT.sol";
 import {NFT} from "./NFT.sol";  
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {INFTEvents} from "./Interface/INFTEvents.sol";
 
 
 
@@ -39,7 +40,7 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 
 
 
-contract NftMarketplace {
+contract NftMarketplace is INFTEvents{
 
   ////////////////////
   // STATE VARIABLE//
@@ -90,8 +91,6 @@ contract NftMarketplace {
 
     }
 
-    MarketItem[] public marketItems;
-
     constructor(address _NftContract, address _priceFeed) 
      {
       nftContract = _NftContract;
@@ -114,6 +113,15 @@ contract NftMarketplace {
   // add pricefeed to buy this using the usd 
   function createMarketItem(uint256 tokenId,uint256 _price,uint256 _royalityForCreator,bool isUsd) public payable  returns(uint256) {
    address  owner = INFT(nftContract).ownerOf(tokenId);
+   if (_price <= 0) {
+    revert  NftMarketplace__PriceIsZero(_price);
+
+}
+
+if (_royalityForCreator <= 0) {
+  revert  NftMarketplace__RoyalityCreator(_royalityForCreator);
+
+}
    if (isUsd) {
     console.log("logged ito the usd");   
   uint feeForPriceInUSD =  calculateMarketFeeForUsd(_price,_royalityForCreator);
@@ -134,15 +142,7 @@ contract NftMarketplace {
        revert  NftMarketplace__NotTheOwner(msg.sender);
 
    }
-   if (_price <= 0) {
-    revert  NftMarketplace__PriceIsZero(_price);
-
-}
-
-if (_royalityForCreator <= 0) {
-  revert  NftMarketplace__RoyalityCreator(_royalityForCreator);
-
-}
+  
        ItemId++;
        MarketItem memory  marketItem = MarketItem (
           ItemId,
@@ -155,9 +155,19 @@ if (_royalityForCreator <= 0) {
           false
         );
       
-         marketItems.push(marketItem);
          idToMarketItem[ItemId] = marketItem;
+     
 
+         emit CreateMarketItem   ( 
+          ItemId,
+          tokenId,
+          payable (msg.sender),
+          address(0),
+          _royalityForCreator,
+          _price,
+          isUsd,
+          false
+         );
 
         return ItemId;
   }
@@ -183,7 +193,6 @@ if (_royalityForCreator <= 0) {
   }
 
 
-  //some problem in this code
   function calculateMarketFeeForUsd(uint price,uint royality) public view returns(uint256) {
    (,int256 answer,,,)= priceFeed.latestRoundData(); //200_000_000_000 
     
@@ -240,16 +249,22 @@ if (_royalityForCreator <= 0) {
       return PRECISION;
      }
 
-    function getmarketItemsLength() public view returns(uint) {
-      return marketItems.length;
-    }
     function getidToMarketItem(uint tokendId) public view returns(MarketItem memory) {
                return idToMarketItem[tokendId];
     }
     function getpriceFeed() public view returns(address) {
        return address(priceFeed); 
     }
+    function getAllMarketItems() public view returns(MarketItem[] memory) {
+      MarketItem[] memory items = new MarketItem[](ItemId);
+      uint itemid = ItemId;
+      console.log("itemid from the contract",itemid);
+                              //2 
+        for (uint i = 0; i < itemid; i++) {
+          items[i] = idToMarketItem[i+1];
+            }
+                    return items; 
+
+
+    }
 }
-
-
-
