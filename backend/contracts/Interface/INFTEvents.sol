@@ -13,15 +13,25 @@ interface INFTEvents {
         uint tokenId
     );
 
-    event CreateMarketItem (
+    event MarketPlace_CreateMarketItem (
         uint256 Marketid,
         uint256 NftId,
+        address creator,
       address payable sellerOrOwner,
-      address buyer,
       uint256 royalityForCreator,
       uint256 price,
       bool isUsd,
       bool sold 
     );
 
+    event MarketPlace_Buy (
+        uint256 Marketid,
+        uint256 NftId,
+        address  creator,
+      address  sellerOrOwner,
+      uint256 royalityForCreator,
+      uint256 price,
+      bool isUsd,
+      bool sold 
+    );
 }

@@ -9,6 +9,8 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {INFTEvents} from "./Interface/INFTEvents.sol";   
+//for royalities
+
 
 
 
@@ -27,16 +29,9 @@ contract NFT is ERC721URIStorage,Pausable,INFTEvents {
     /////////////////
     error  NFT__TokenURIIsEmpty();
     constructor() ERC721("Undefeated","UDF")  {}
-
-
-
-
-
-
     //////////////////
     // FUNCTIONS   //
     /////////////////
-
 
     /// @dev mints the nft only when it is not paused
     /// @param _tokenURI  minting to the address     
