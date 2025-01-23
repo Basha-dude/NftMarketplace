@@ -254,44 +254,56 @@ contract NftMarketplace is INFTEvents {
 
     /// @notice Folows checks effects interaction
     /// @dev  though the price is in usd, pays in eth
-    /// @param tokenId is id of nft in this marketplace
+    /// @param itemId is id of nft in this marketplace
 
     //need to transfer the royality and add the price can  change by the owner
-    function buy(uint tokenId) public payable {
+    function buy(uint itemId) public payable {
         //checks
-        MarketItem storage marketItem = idToMarketItem[tokenId];
+        MarketItem storage marketItem = idToMarketItem[itemId];   
+        address payable originalSeller = marketItem.sellerOrOwner;
+
         if (marketItem.sold) {
-            revert NftMarketplace__AlreadySold(tokenId);
+            revert NftMarketplace__AlreadySold(itemId);
         }
         if (
             marketItem.sellerOrOwner == msg.sender ||
             marketItem.Creator == msg.sender
         ) {
-            revert NftMarketplace__CannotBuyHisToken(tokenId);
+            revert NftMarketplace__CannotBuyHisToken(itemId);
         }
         //here not to the marketplace to the sellerOrOwner
+      
+
+        //royalirty to the creator 
         uint priceToPay;
-        if (marketItem.isUsd) {
-            priceToPay = calculateUsdToPayPrice(marketItem.price);
-            require(msg.value >= priceToPay, "Insufficent Usd to buy");
-        } else {
-            priceToPay = marketItem.price;
-            require(msg.value >= marketItem.price, "Insufficent Eth to buy");
-        }
         uint royalityToPay;
         if (marketItem.isUsd) {
             royalityToPay = calculateMarketFeeForUsd(marketItem.price,marketItem.royalityForCreator);
+            console.log("royality usd to from the contract",royalityToPay);
         } else {
             priceToPay = marketItem.price;
             royalityToPay = calculateMarketFeeForEth(marketItem.price,marketItem.royalityForCreator);
+            console.log("royality usd to from the contract",royalityToPay);
+
         }
-        address creator = creatorOfNft(tokenId);
+
+        if (marketItem.isUsd) {
+            priceToPay = calculateUsdToPayPrice(marketItem.price);
+            priceToPay = priceToPay;
+            require(msg.value >= priceToPay, "Insufficent Usd to buy");   
+        } else {
+            priceToPay = (marketItem.price * PRECISION );
+                        console.log("priceToPay in eth the contract",priceToPay);
+
+            require(msg.value >= priceToPay , "Insufficent Eth to buy");
+        }
+        address creator = creatorOfNft(itemId);
 
         //effects
         marketItem.sellerOrOwner = payable(msg.sender);
         marketItem.sold = true;
         emit MarketPlace_Buy(
-            tokenId,
+            itemId,
             marketItem.NftId,
             creator,
             msg.sender,
@@ -302,20 +314,20 @@ contract NftMarketplace is INFTEvents {
         );
         //interactions
         //price
-        (bool sellerSuccess, ) = marketItem.sellerOrOwner.call{
+        (bool sellerSuccess, ) = originalSeller.call{
             value: priceToPay
         }("");
         if (!sellerSuccess) revert NftMarketplace__BuyTransferFailed();
 
         //royality
-        (bool royalityForCreatorSuccess, ) = marketItem.sellerOrOwner.call{
+        (bool royalityForCreatorSuccess, ) = marketItem.Creator.call{
             value: royalityToPay
         }("");
         if (!royalityForCreatorSuccess)
             revert NftMarketplace__BuyCreatorRoyalityTransferFailed();
 
         INFT(nftContract).safeTransferFrom(
-            address(this),
+           creator,
             msg.sender,
             marketItem.NftId
         );

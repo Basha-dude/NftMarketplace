@@ -115,7 +115,7 @@ describe("DEPLOYMENT", async () => {
       expect(args[6]).to.be.equal(false)
       expect(args[7]).to.be.equal(false)
       const Array = await nftMarketplace.getAllMarketItems() 
-      console.log("ARRAY",Array);
+      // console.log("ARRAY",Array);
       
       
       // expect(Array).to.be.equal(1)
@@ -156,15 +156,8 @@ describe("DEPLOYMENT", async () => {
             
             const getAllMarketItems = await nftMarketplace.getAllMarketItems();
             console.log("getAllMarketItems from the test",getAllMarketItems);
-
-            
-
-                 
             // // Add these new assertions
-            expect(getAllMarketItems.length).to.equal(2);
-            
-         
-           
+            expect(getAllMarketItems.length).to.equal(2);  
       })
 
       it("it should revert when the price createMarketItem in marketplace for usd is 0", async () =>{
@@ -191,7 +184,7 @@ describe("DEPLOYMENT", async () => {
       it("it should test getAllMarketItems",async()=>{
         let ArrayStwo = await nftMarketplace.getAllMarketItems() 
         let Array = ArrayStwo[0]
-        console.log("ARRAY",Array);
+        // console.log("ARRAY",Array);
         expect(Array[0]).to.be.equal(1)
         expect(Array[1]).to.be.equal(1)
         expect(Array[2]).to.be.equal(deployer.address)
@@ -201,7 +194,7 @@ describe("DEPLOYMENT", async () => {
         expect(Array[6]).to.be.equal(false)
 
         Array = ArrayStwo[1]
-        console.log("ARRAY 2",Array);
+        // console.log("ARRAY 2",Array);
 
         expect(Array[0]).to.be.equal(2)
         expect(Array[1]).to.be.equal(2)
@@ -212,6 +205,33 @@ describe("DEPLOYMENT", async () => {
         expect(Array[6]).to.be.equal(true)
 
       })
+      describe('BUY IN MARKETPLACE', () => { 
+         it("BUY",async () => {
+               const contractBalance = await ethers.provider.getBalance(nftMarketplace.target)
+               const deployerBalance = await ethers.provider.getBalance(deployer.address)
+               const UserBalance = await ethers.provider.getBalance(user.address) 
+               console.log("contractBalance",contractBalance); //0.08 
+               console.log("deployerBalance",deployerBalance);//9999.908586230462626495
+               console.log("UserBalance",UserBalance);//10000
+
+              await nftMarketplace.connect(user).buy(1,{value:ethers.parseEther("2.04")})
+
+              const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
+              const deployerBalanceAfter = await ethers.provider.getBalance(deployer.address)
+              const UserBalanceAfter = await ethers.provider.getBalance(user.address) 
+              console.log("contractBalanceAfter",contractBalanceAfter);//2.039999999999999998
+              console.log("deployerBalanceAfter",deployerBalanceAfter);//9999.948586230462626495
+              console.log("UserBalanceAfter",UserBalanceAfter);//9997.999845979240190298
+              console.log("contractBalanceAfter -contractBalance",contractBalanceAfter -contractBalance);
+              console.log("deployerBalanceAfter -deployerBalance",deployerBalanceAfter -deployerBalance);
+              console.log(" UserBalance - UserBalanceAfter", UserBalance - UserBalanceAfter);
+
+
+
+
+
+         })
+       })
 
     })
 
