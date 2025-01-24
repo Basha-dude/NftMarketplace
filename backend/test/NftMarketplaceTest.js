@@ -26,7 +26,7 @@ describe("DEPLOYMENT", async () => {
   const price1 = 2
   const DECIMALS = 8;
   const ETH_USD_PRICE = 200000000000;
-  const priceForUsd = 4000
+  const priceForUsd = 5500
 
   before( async ()=> {
     const NFT = await ethers.getContractFactory("NFT")
@@ -39,8 +39,7 @@ describe("DEPLOYMENT", async () => {
         nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target)
 })
 
-
-      describe('NFT', () => {   
+   describe('NFT', () => {   
  
   it("testing the tokenId",async  ()=>{
    const id =  await nft.getTokenId()
@@ -139,9 +138,9 @@ describe("DEPLOYMENT", async () => {
 
 
             const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
-            console.log("fee for the usd",fee);
+            console.log("fee for the usd test HERE",fee);
             
-            const TxCreate =  await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseUnits("0.04")})
+            const TxCreate =  await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseEther("0.055")})
             const TxCreateReceipt = await TxCreate.wait()
             const logs = TxCreateReceipt.logs[0]
             const args = logs.args
@@ -150,12 +149,12 @@ describe("DEPLOYMENT", async () => {
             expect(args[2]).to.be.equal(deployer.address)
             expect(args[3]).to.be.equal(deployer.address)
             expect(args[4]).to.be.equal(BigInt(2))
-            expect(args[5]).to.be.equal(BigInt(4000))
+            expect(args[5]).to.be.equal(BigInt(5500)) //here
             expect(args[6]).to.be.equal(true)
             expect(args[7]).to.be.equal(false)
             
             const getAllMarketItems = await nftMarketplace.getAllMarketItems();
-            console.log("getAllMarketItems from the test",getAllMarketItems);
+            // console.log("getAllMarketItems from the test",getAllMarketItems);
             // // Add these new assertions
             expect(getAllMarketItems.length).to.equal(2);  
       })
@@ -179,8 +178,8 @@ describe("DEPLOYMENT", async () => {
         await expect(
           nftMarketplace.createMarketItem(2,priceForUsd,royality1,true,{value: 0 })
       ).to.be.revertedWith("pay the fee for price in usd")
-
       })
+
       it("it should test getAllMarketItems",async()=>{
         let ArrayStwo = await nftMarketplace.getAllMarketItems() 
         let Array = ArrayStwo[0]
@@ -201,43 +200,102 @@ describe("DEPLOYMENT", async () => {
         expect(Array[2]).to.be.equal(deployer.address)
         expect(Array[3]).to.be.equal(deployer.address)
         expect(Array[4]).to.be.equal(2)
-        expect(Array[5]).to.be.equal(4000)
+        expect(Array[5]).to.be.equal(5500) //here
+
+
         expect(Array[6]).to.be.equal(true)
 
       })
+
       describe('BUY IN MARKETPLACE', () => { 
-         it("BUY",async () => {
+         it("BUY First NFT",async () => {
                const contractBalance = await ethers.provider.getBalance(nftMarketplace.target)
                const deployerBalance = await ethers.provider.getBalance(deployer.address)
                const UserBalance = await ethers.provider.getBalance(user.address) 
-               console.log("contractBalance",contractBalance); //0.08 
-               console.log("deployerBalance",deployerBalance);//9999.908586230462626495
-               console.log("UserBalance",UserBalance);//10000
+              //  console.log("contractBalance",contractBalance); //0.08 
+              //  console.log("deployerBalance",deployerBalance);//9999.908586230462626495
+              //  console.log("UserBalance",UserBalance);//10000
 
-              await nftMarketplace.connect(user).buy(1,{value:ethers.parseEther("2.04")})
+              await nftMarketplace.connect(user).buy(1,{value:ethers.parseEther("2.0402")})
 
               const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
               const deployerBalanceAfter = await ethers.provider.getBalance(deployer.address)
               const UserBalanceAfter = await ethers.provider.getBalance(user.address) 
-              console.log("contractBalanceAfter",contractBalanceAfter);//2.039999999999999998
-              console.log("deployerBalanceAfter",deployerBalanceAfter);//9999.948586230462626495
-              console.log("UserBalanceAfter",UserBalanceAfter);//9997.999845979240190298
-              console.log("contractBalanceAfter -contractBalance",contractBalanceAfter -contractBalance);
-              console.log("deployerBalanceAfter -deployerBalance",deployerBalanceAfter -deployerBalance);
-              console.log(" UserBalance - UserBalanceAfter", UserBalance - UserBalanceAfter);
-
-
+              // console.log("contractBalanceAfter",contractBalanceAfter);//2.039999999999999998
+              // console.log("deployerBalanceAfter",deployerBalanceAfter);//9999.948586230462626495
+              // console.log("UserBalanceAfter",UserBalanceAfter);//9997.999845979240190298
+              // console.log("contractBalanceAfter -contractBalance",contractBalanceAfter -contractBalance);
+              // console.log("deployerBalanceAfter -deployerBalance",deployerBalanceAfter -deployerBalance);
+              // console.log(" UserBalance - UserBalanceAfter", UserBalance - UserBalanceAfter);
+              expect(contractBalanceAfter).to.be.greaterThan(contractBalance)
+              expect(deployerBalanceAfter).to.be.greaterThan(deployerBalance)
+              expect(UserBalance).to.be.greaterThan(UserBalanceAfter)
 
 
 
          })
+         it("BUY Second NFT",async () => {
+          const contractBalance = await ethers.provider.getBalance(nftMarketplace.target)
+          const deployerBalance = await ethers.provider.getBalance(deployer.address)
+          const UserBalance = await ethers.provider.getBalance(user.address) 
+          console.log("contractBalance",contractBalance); //0.08 
+          console.log("deployerBalance",deployerBalance);//9999.908586230462626495
+          console.log("UserBalance",UserBalance);//10000
+
+          const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
+          console.log("fee for the usd test HERE in 2nd id",fee);
+           
+         await nftMarketplace.connect(user).buy(2,{value:ethers.parseEther("2.805276")}) // ONLY FEE + PRICE ,COMMISSION NOT ADDED
+
+         const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
+         const deployerBalanceAfter = await ethers.provider.getBalance(deployer.address)
+         const UserBalanceAfter = await ethers.provider.getBalance(user.address) 
+         console.log("contractBalanceAfter",contractBalanceAfter);//2.039999999999999998
+         console.log("deployerBalanceAfter",deployerBalanceAfter);//9999.948586230462626495
+         console.log("UserBalanceAfter",UserBalanceAfter);//9997.999845979240190298
+         console.log("contractBalanceAfter -contractBalance",contractBalanceAfter -contractBalance);
+         console.log("deployerBalanceAfter -deployerBalance",deployerBalanceAfter -deployerBalance);
+         console.log(" UserBalance - UserBalanceAfter", UserBalance - UserBalanceAfter);
+         expect(contractBalanceAfter).to.be.greaterThan(contractBalance)
+         expect(deployerBalanceAfter).to.be.greaterThan(deployerBalance)
+         expect(UserBalance).to.be.greaterThan(UserBalanceAfter)
+    })
+    it(" test for USD commission ",async () => {
+      const commissionForUSD = await nftMarketplace.calculateTheCommision(ethers.parseEther("2.75"))
+
+      //GIVING CORRECT ANSWER
+       expect(275000000000000).to.be.equal(commissionForUSD)
+
+
        })
-
-    })
-
-    })
+       it(" test for ETH commission ",async () => {
+        const commissionFORETH = await nftMarketplace.calculateTheCommision(ethers.parseEther("2"))
+         expect( 200000000000000).to.be.equal(commissionFORETH)
   
-       
+         })
 
-        
- 
+
+
+      })
+
+    })
+
+    })
+  // //given 27500_000_000_000_000
+  // // need 275_000_000_000_000
+             
+  //         275000_000_000_000
+  // //        2_750_000_000_000
+  // //2750_000_000_000
+
+  //1000000000000000
+  //1000000000000000
+
+  //10100000000000000
+  //10100000000000000
+
+  //10000000000000000000
+  //10000000000000000000
+
+
+ //git commit m "completed test commission and all"

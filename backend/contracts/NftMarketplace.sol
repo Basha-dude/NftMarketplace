@@ -46,6 +46,8 @@ contract NftMarketplace is INFTEvents {
     address nftContract;
     uint PRECISION = 1e18;
     uint256 PERCENT = 100;
+    uint commission = 1e14; 
+
     AggregatorV3Interface priceFeed;
     uint ADDITIONAL_PRECISION = 1e10;
 
@@ -217,37 +219,37 @@ contract NftMarketplace is INFTEvents {
     e.x. 1 ETH = $2000  
          4000/2000 = 2
      */
-        console.log("price from the contract", price);
-        console.log("royality from the contract", royality);
-        console.log("answer from the contract", uint(answer)); //200_000_000_000
+        console.log("price from the contract in USD", price);//5500
+        console.log("royality from the contract in USD", royality);
+        console.log("answer from the contract in USD", uint(answer)); //200_000_000_000
         uint256 answerInUsd = uint(answer) * ADDITIONAL_PRECISION; //2_000_000_000_000_000_000_000
 
-        console.log("answerInUsd from the contract", answerInUsd); //2_000_000_000_000_000_000_000
+        console.log("answerInUsd from the contract in USD", answerInUsd); //2_000_000_000_000_000_000_000
         console.log(
-            "uint(answer) * ADDITIONAL_PRECISION",
+            "uint(answer) * ADDITIONAL_PRECISION in USD ",
             uint(answer) * ADDITIONAL_PRECISION
         ); //2_000_000_000_000_000_000_000
 
         uint256 priceToEthDecimal = price * PRECISION;
-        console.log("price * PRECISION", price * PRECISION); //2_000_000_000_000_000_000
-        console.log("priceToEthDecimal", priceToEthDecimal); //2 000 000 000 000 000 000
+        console.log("price * PRECISION in USD", price * PRECISION); //2_000_000_000_000_000_000
+        console.log("priceToEthDecimal in USD", priceToEthDecimal); //2 000 000 000 000 000 000
 
         // 4_000_000_000_000_000_000_000 /
         // 2_000_000_000_000_000_000_000
-        console.log("priceToEthDecimal", priceToEthDecimal);
-        console.log("answerInUsd from the contract", answerInUsd);
+        console.log("priceToEthDecimal in USD", priceToEthDecimal);
+        console.log("answerInUsd from the contract in USD", answerInUsd);
         //priceToEthDecimal             2_000_000_000_000_000_000
         //answerInUsd from the contract 2_000_000_000_000_000_000_000
-        uint256 eth = priceToEthDecimal / answerInUsd; //0
-        console.log("eth", eth);
+        uint256 eth = (priceToEthDecimal  * PRECISION) / answerInUsd; //0 
+        console.log("eth IN USD", eth);
 
-        uint fee = (eth * royality * PRECISION) / PERCENT;
+        uint fee = (eth * royality ) / PERCENT;
         console.log(
-            "eth * royality * PRECISION)",
+            "eth * royality * PRECISION) IN USD ",
             (eth * royality * PRECISION)
         );
 
-        console.log("fee from the contract usd", fee);
+        console.log("fee from the contract IN USD", fee);
 
         return fee;
     }
@@ -274,9 +276,10 @@ contract NftMarketplace is INFTEvents {
         //here not to the marketplace to the sellerOrOwner
       
 
-        //royalirty to the creator 
+        //royality to the creator 
         uint priceToPay;
         uint royalityToPay;
+        uint commissionInBuy; 
         if (marketItem.isUsd) {
             royalityToPay = calculateMarketFeeForUsd(marketItem.price,marketItem.royalityForCreator);
             console.log("royality usd to from the contract",royalityToPay);
@@ -289,13 +292,17 @@ contract NftMarketplace is INFTEvents {
 
         if (marketItem.isUsd) {
             priceToPay = calculateUsdToPayPrice(marketItem.price);
-            priceToPay = priceToPay;
-            require(msg.value >= priceToPay, "Insufficent Usd to buy");   
+            console.log("priceToPay in  the contract USD",priceToPay); 
+            commissionInBuy =  calculateTheCommision(priceToPay);
+            console.log(" FROM USD priceToPay + royalityToPay + commissionInBuy",priceToPay + royalityToPay + commissionInBuy);
+
+            require(msg.value >= priceToPay + royalityToPay + commissionInBuy, "Insufficent Usd to buy");   
         } else {
             priceToPay = (marketItem.price * PRECISION );
                         console.log("priceToPay in eth the contract",priceToPay);
-
-            require(msg.value >= priceToPay , "Insufficent Eth to buy");
+                        commissionInBuy = calculateTheCommision(priceToPay);
+                        console.log(" FROM ETH priceToPay + royalityToPay + commissionInBuy",priceToPay + royalityToPay + commissionInBuy);
+                        require(msg.value >= priceToPay + royalityToPay + commissionInBuy, "Insufficent Eth to buy");
         }
         address creator = creatorOfNft(itemId);
 
@@ -326,6 +333,8 @@ contract NftMarketplace is INFTEvents {
         if (!royalityForCreatorSuccess)
             revert NftMarketplace__BuyCreatorRoyalityTransferFailed();
 
+
+
         INFT(nftContract).safeTransferFrom(
            creator,
             msg.sender,
@@ -340,9 +349,37 @@ contract NftMarketplace is INFTEvents {
         uint priceFromPriceFeedInEth = priceFromPricefeed *
             ADDITIONAL_PRECISION;
         uint priceInUsdToEth = priceInUsd * PRECISION;
-        uint priceToPay = (priceInUsdToEth * PRECISION) /
+        uint priceToPay = (priceInUsdToEth * PRECISION) / 
             priceFromPriceFeedInEth;
         return priceToPay;
+    }
+                                  //price comes as 1e18   
+    // function calculateTheCommision(uint price) public view  returns(uint) {
+    //     console.log("price from the calculateTheCommision from the contract USD ",price);
+    //     console.log("(  price  *  commission ) from the calculateTheCommision from the contract USD ",(  price  *  commission ));
+    //     console.log("(PERCENT * PRECISION ) from the calculateTheCommision from the contract USD ",(PERCENT * PRECISION ));
+
+    //       console.log("( price * commission) from the calculateTheCommision from the contract USD ",(  price  *  commission ) / (PERCENT * PRECISION ));
+    //       uint commissionToPay =(price * commission) / (PERCENT * PRECISION) * PRECISION / 1e14;
+    //       console.log("commissionToPay from the calculateTheCommision from the contract USD ",commissionToPay);
+
+    //      return commissionToPay;  
+    // }
+
+    function calculateTheCommision(uint price) public view returns(uint) {
+        uint intermediateStep1 = price * commission;
+        console.log("intermediateStep1:", intermediateStep1);
+        
+        uint intermediateStep2 = PERCENT * PRECISION;
+        console.log("intermediateStep2:", intermediateStep2);
+        
+        uint intermediateStep3 = intermediateStep1 / intermediateStep2;
+        console.log("intermediateStep3:", intermediateStep3);
+        
+        uint intermediateStep4 = intermediateStep3 * PRECISION / 1e16;
+        console.log("intermediateStep4:", intermediateStep4);
+        
+        return intermediateStep4;
     }
 
     ///////////////////
