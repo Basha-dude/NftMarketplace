@@ -34,4 +34,17 @@ interface INFTEvents {
       bool isUsd,
       bool sold 
     );
+
+    event MarketPlace_ReListInTheMarket (
+      uint256 Marketid,
+      uint256 NftId,
+      address  creator,
+    address  sellerOrOwner,
+    uint256 royalityForCreator,
+    uint256 price,
+    bool isUsd,
+    bool sold 
+  );
+
+    
 }

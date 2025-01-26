@@ -5,15 +5,15 @@ pragma solidity ^0.8.9;
 import "hardhat/console.sol";
 
 /* 
-*****SWAPPING******
+*****
+SWAPPING******
 1.staking
 3.dao
 4.can pay with erc-20
-5.commission for platform
 6.bridges or interoperability protocols.
 7.Lending/Borrowing:
 8.Auctions
-9.NFT Bundles:
+9.NFT Bundles: 
 10. In-Platform Messaging:
 Allow buyers and sellers to communicate directly through a secure chat system.
 11. Gamification:
@@ -28,16 +28,18 @@ import {NFT} from "./NFT.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {INFTEvents} from "./Interface/INFTEvents.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 
 /* 
 1.re-entrancy gaurd
 
 */
 
-//need to 1)write test for buy and  royality
-          //2) write commission for the platform
+//need to 1) tested the reListInTheMarket only for eth
+        //2) need to test for usd also and daily should complete one feature
           
-contract NftMarketplace is INFTEvents {
+contract NftMarketplace is INFTEvents,ReentrancyGuard {
     ////////////////////
     // STATE VARIABLE//
     //////////////////
@@ -64,6 +66,10 @@ contract NftMarketplace is INFTEvents {
     error NftMarketplace__BuyTransferFailed();
     error NftMarketplace__RoyalityCreatorIsTooHigh(uint royality);
     error NftMarketplace__BuyCreatorRoyalityTransferFailed();
+    error NftMarketplace__NotTheSellerOrOwner(address another);
+    error NftMarketplace__NotExist(uint itemid);
+
+
 
     /////////////////
     // MAPPING     //
@@ -259,13 +265,16 @@ contract NftMarketplace is INFTEvents {
     /// @param itemId is id of nft in this marketplace
 
     //need to transfer the royality and add the price can  change by the owner
-    function buy(uint itemId) public payable {
+    function buy(uint itemId) public payable nonReentrant {
         //checks
         MarketItem storage marketItem = idToMarketItem[itemId];   
         address payable originalSeller = marketItem.sellerOrOwner;
 
         if (marketItem.sold) {
             revert NftMarketplace__AlreadySold(itemId);
+        }
+        if (VerifyTheApproved(marketItem.NftId)) {
+            revert NftMarketplace__DidNotApproved(address(this));
         }
         if (
             marketItem.sellerOrOwner == msg.sender ||
@@ -333,14 +342,58 @@ contract NftMarketplace is INFTEvents {
         if (!royalityForCreatorSuccess)
             revert NftMarketplace__BuyCreatorRoyalityTransferFailed();
 
-
-
         INFT(nftContract).safeTransferFrom(
            creator,
             msg.sender,
             marketItem.NftId
         );
     }
+
+    function reListInTheMarket(uint _itemId,uint _price,bool _isUsd) public payable {
+        if (!checkItExits(_itemId)) {
+            revert NftMarketplace__NotExist(_itemId); 
+        }
+        MarketItem storage marketItem = idToMarketItem[_itemId];   
+        address payable originalSeller = marketItem.sellerOrOwner;
+        address creator = creatorOfNft(_itemId);
+
+        if (msg.sender != originalSeller) {
+             revert NftMarketplace__NotTheSellerOrOwner(msg.sender); 
+        }
+        if (_price <= 0) {
+            revert NftMarketplace__PriceIsZero(_price);
+        }
+        uint feeTopay;
+        if (_isUsd) {
+            feeTopay = calculateMarketFeeForUsd(_price, marketItem.royalityForCreator);
+            require(msg.value >=feeTopay, "Insuffient Usd for Listing");
+        } else{
+            feeTopay = calculateMarketFeeForEth(_price, marketItem.royalityForCreator);
+            require(msg.value >=feeTopay, "Insuffient Eth for Listing");
+
+        }
+
+        marketItem.price = _price;
+        marketItem.isUsd = _isUsd; 
+        marketItem.sold = false;
+
+        emit MarketPlace_ReListInTheMarket(
+            _itemId,
+            marketItem.NftId,
+            creator,
+            payable(msg.sender),
+            marketItem.royalityForCreator,
+            _price,
+            _isUsd,
+            false
+        );
+        
+    }
+
+    function checkItExits(uint _ItemId) public view  returns(bool){
+           return  _ItemId > 0 && _ItemId <= ItemId;
+    }
+
 
     function calculateUsdToPayPrice(
         uint priceInUsd

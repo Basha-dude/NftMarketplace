@@ -215,6 +215,7 @@ describe("DEPLOYMENT", async () => {
               //  console.log("contractBalance",contractBalance); //0.08 
               //  console.log("deployerBalance",deployerBalance);//9999.908586230462626495
               //  console.log("UserBalance",UserBalance);//10000
+              await nft.connect(deployer).approve(nftMarketplace.target,1)
 
               await nftMarketplace.connect(user).buy(1,{value:ethers.parseEther("2.0402")})
 
@@ -244,7 +245,8 @@ describe("DEPLOYMENT", async () => {
 
           const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
           console.log("fee for the usd test HERE in 2nd id",fee);
-           
+          await nft.connect(deployer).approve(nftMarketplace.target,2)
+
          await nftMarketplace.connect(user).buy(2,{value:ethers.parseEther("2.805276")}) // ONLY FEE + PRICE ,COMMISSION NOT ADDED
 
          const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
@@ -273,6 +275,48 @@ describe("DEPLOYMENT", async () => {
          expect( 200000000000000).to.be.equal(commissionFORETH)
   
          })
+      
+      it(" test for reListInTheMarket for First Nft ",async () => {
+          const Tx = await nftMarketplace.connect(user).reListInTheMarket(1,4,false,{value: ethers.parseEther("0.08")})
+           const TxCreateReceipt = await Tx.wait()
+            const logs =TxCreateReceipt.logs[0]
+            const args = logs.args
+            expect(args[0]).to.be.equal(BigInt(1))
+            expect(args[1]).to.be.equal(BigInt(1))
+            expect(args[2]).to.be.equal(deployer.address)
+            expect(args[3]).to.be.equal(user.address)
+            expect(args[4]).to.be.equal(BigInt(2))
+            expect(args[5]).to.be.equal(BigInt(4))
+            expect(args[6]).to.be.equal(false)
+            expect(args[7]).to.be.equal(false)
+
+            const Array= await nftMarketplace.getidToMarketItem(1)
+            expect(Array[0]).to.be.equal(BigInt(1))
+            expect(Array[1]).to.be.equal(BigInt(1))
+            expect(Array[2]).to.be.equal(deployer.address)
+            expect(Array[3]).to.be.equal(user.address)
+            expect(Array[4]).to.be.equal(BigInt(2))
+            expect(Array[5]).to.be.equal(BigInt(4))
+            expect(Array[6]).to.be.equal(false)
+            expect(Array[7]).to.be.equal(false)
+           })
+
+           it(" test for reListInTheMarket for First Nft  to Revert For not giving Price",async () => {
+              await  expect( nftMarketplace.connect(user).reListInTheMarket(1,4,false)).to.be.revertedWith("Insuffient Eth for Listing")
+
+           })
+           it(" test for reListInTheMarket for First Nft  to Revert for not Exits",async () => {
+            await  expect( nftMarketplace.connect(user).reListInTheMarket(10,4,false)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotExist")
+
+         })
+         it(" test for reListInTheMarket for First Nft  to Revert for not Exits",async () => {
+          await  expect( nftMarketplace.connect(user).reListInTheMarket(1,0,false)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__PriceIsZero")
+
+       })
+       it(" test for reListInTheMarket for First Nft  to Revert for not the seller",async () => {
+        await  expect( nftMarketplace.connect(deployer).reListInTheMarket(1,0,false)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotTheSellerOrOwner")
+     })
+       
 
 
 
