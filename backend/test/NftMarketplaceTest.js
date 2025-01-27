@@ -207,7 +207,7 @@ describe("DEPLOYMENT", async () => {
 
       })
 
-      describe('BUY IN MARKETPLACE', () => { 
+      describe('BUY AND RELIST IN MARKETPLACE', () => { 
          it("BUY First NFT",async () => {
                const contractBalance = await ethers.provider.getBalance(nftMarketplace.target)
                const deployerBalance = await ethers.provider.getBalance(deployer.address)
@@ -316,12 +316,54 @@ describe("DEPLOYMENT", async () => {
        it(" test for reListInTheMarket for First Nft  to Revert for not the seller",async () => {
         await  expect( nftMarketplace.connect(deployer).reListInTheMarket(1,0,false)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotTheSellerOrOwner")
      })
+
+     it(" test for reListInTheMarket for Second Nft ",async () => {
+      const Tx = await nftMarketplace.connect(user).reListInTheMarket(2,11000,true,{value: ethers.parseEther("0.11")})
+       const TxCreateReceipt = await Tx.wait()
+        const logs =TxCreateReceipt.logs[0]
+        const args = logs.args
+        expect(args[0]).to.be.equal(BigInt(2))
+        expect(args[1]).to.be.equal(BigInt(2))
+        expect(args[2]).to.be.equal(deployer.address)
+        expect(args[3]).to.be.equal(user.address)
+        expect(args[4]).to.be.equal(BigInt(2))
+        expect(args[5]).to.be.equal(BigInt(11000))
+        expect(args[6]).to.be.equal(true)
+        expect(args[7]).to.be.equal(false)
+
+        const Array= await nftMarketplace.getidToMarketItem(2)
+        expect(Array[0]).to.be.equal(BigInt(2))
+        expect(Array[1]).to.be.equal(BigInt(2))
+        expect(Array[2]).to.be.equal(deployer.address)
+        expect(Array[3]).to.be.equal(user.address)
+        expect(Array[4]).to.be.equal(BigInt(2))
+        expect(Array[5]).to.be.equal(BigInt(11000))
+        expect(Array[6]).to.be.equal(true)
+        expect(Array[7]).to.be.equal(false)
+       })
+
+       it(" test for reListInTheMarket for Second Nft  to Revert For not giving Price",async () => {
+          await  expect( nftMarketplace.connect(user).reListInTheMarket(2,11000,true)).to.be.revertedWith("Insuffient Usd for Listing")
+
+       })
+       it(" test for reListInTheMarket for Second Nft  to Revert for not Exits",async () => {
+        await  expect( nftMarketplace.connect(user).reListInTheMarket(10,11000,true)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotExist")
+
+     })
+     it(" test for reListInTheMarket for Second Nft  to Revert for not Exits",async () => {
+      await  expect( nftMarketplace.connect(user).reListInTheMarket(2,0,true)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__PriceIsZero")
+
+   })
+   it(" test for reListInTheMarket for Second Nft  to Revert for not the seller",async () => {
+    await  expect( nftMarketplace.connect(deployer).reListInTheMarket(2,0,true)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotTheSellerOrOwner")
+ })
        
 
 
 
       })
-
+ 
+      
     })
 
     })

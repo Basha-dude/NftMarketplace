@@ -9,7 +9,7 @@ import "hardhat/console.sol";
 SWAPPING******
 1.staking
 3.dao
-4.can pay with erc-20
+4.can pay with erc-20(not my own,have to be existed erc-20s)
 6.bridges or interoperability protocols.
 7.Lending/Borrowing:
 8.Auctions
@@ -36,8 +36,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 */
 
-//need to 1) tested the reListInTheMarket only for eth
-        //2) need to test for usd also and daily should complete one feature
+//need to 1) tested the reListInTheMarket  for both  eth and usd
+        //2) need  daily should complete one feature
           
 contract NftMarketplace is INFTEvents,ReentrancyGuard {
     ////////////////////
