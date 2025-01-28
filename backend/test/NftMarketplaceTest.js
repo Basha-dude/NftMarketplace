@@ -6,12 +6,13 @@ const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { ethers } = require("hardhat")
 
+
 describe("DEPLOYMENT", async () => {
 
   /////////////
   //  LET    //
   ////////////
-  let deployer,user,nft,nftMarketplace,mockV3Aggregator
+  let deployer,user,nft,nftMarketplace,mockV3Aggregator,user1,dai
 
 
   /////////////
@@ -25,18 +26,27 @@ describe("DEPLOYMENT", async () => {
   const royality1 = 2 
   const price1 = 2
   const DECIMALS = 8;
+  const DECIMALSFOREIGHTEEN = 18
   const ETH_USD_PRICE = 200000000000;
+  const largeNumberStr = "3000000000000000000000";
+  const ETH_DAI_PRICE = BigInt(largeNumberStr); 
+  const eTH_DAI_PRICE =  2000000000000000000000
+
   const priceForUsd = 5500
 
   before( async ()=> {
     const NFT = await ethers.getContractFactory("NFT")
          nft = await NFT.deploy();
-        [deployer,user]  = await ethers.getSigners()
+        [deployer,user,user1]  = await ethers.getSigners()
         const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
         mockV3Aggregator = await MockV3Aggregator.connect(deployer).deploy(DECIMALS,ETH_USD_PRICE);
   
         const NftMarketplace = await ethers.getContractFactory("NftMarketplace")
-        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target)
+        const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
+        dai = await ERC20Mock.connect(user1).deploy("DAI_COIN","DAI",user1.address,1000);
+        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target,[dai.target],[mockV3Aggregator.target])
+        
+
 })
 
    describe('NFT', () => {   
@@ -362,6 +372,22 @@ describe("DEPLOYMENT", async () => {
 
 
       })
+      describe('Buy The Nft With ERC20', async() => { 
+it(" For calualting",async() => {
+
+// Destructure the tuple, capturing only the 'answer' (second element)
+      await mockV3Aggregator.updateAnswer(ETH_DAI_PRICE)
+      const [, answer] = await mockV3Aggregator.latestRoundData();
+
+
+     const price =  await mockV3Aggregator.getAnswer(ETH_DAI_PRICE)
+
+      console.log( "answer ETH_DAI_PRICE",answer);                                           //12 000
+              const withErc =  await  nftMarketplace.calculateTokenToEighteendecimals(ethers.parseEther("3"),dai.target)
+              console.log("withErc",withErc);
+              
+})
+       })
  
       
     })

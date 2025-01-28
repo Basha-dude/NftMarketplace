@@ -22,8 +22,12 @@ Add achievement badges for users based on their activity (e.g., "Top Seller," "E
 Enable NFTs to act as access passes for events, platforms, or exclusive content.
 */
 
+
+/* 
+these imports which not inhereted for is for ABI, to interact with a contract we need ABI and its address */
 import {INFT} from "./Interface/INFT.sol";
 import {NFT} from "./NFT.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 import {INFTEvents} from "./Interface/INFTEvents.sol";
@@ -36,10 +40,11 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 */
 
-//need to 1) tested the reListInTheMarket  for both  eth and usd
-        //2) need  daily should complete one feature
+//completed  0) 
+//Now   1) need to do this `4.can pay with erc-20(not my own,have to be existed erc-20s) now
+ //need to   2) need  daily should complete one feature 
           
-contract NftMarketplace is INFTEvents,ReentrancyGuard {
+contract NftMarketplace is INFTEvents,ReentrancyGuard { 
     ////////////////////
     // STATE VARIABLE//
     //////////////////
@@ -50,7 +55,7 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
     uint256 PERCENT = 100;
     uint commission = 1e14; 
 
-    AggregatorV3Interface priceFeed;
+    AggregatorV3Interface ethUsdpriceFeed;
     uint ADDITIONAL_PRECISION = 1e10;
 
     //////////////////
@@ -68,6 +73,10 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
     error NftMarketplace__BuyCreatorRoyalityTransferFailed();
     error NftMarketplace__NotTheSellerOrOwner(address another);
     error NftMarketplace__NotExist(uint itemid);
+    error NftMarketplace__TokenAddressesAndPriceFeedAddressesAmountsDontMatch(); 
+    error NftMarketplace__TokenAddressIsEmptyOrZeroAdress();
+    error NftMarketplace__AmountIsZeroForBuyingWithErc();
+
 
 
 
@@ -77,6 +86,8 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
 
     //mapping for the id and the MarketItem struct
     mapping(uint256 => MarketItem) idToMarketItem;
+    mapping(address  => address ) private TokensPriceFeeds;
+
 
     //////////////////
     // STRUCT      //
@@ -96,9 +107,15 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
         bool sold;
     }
 
-    constructor(address _NftContract, address _priceFeed) {
+    constructor(address _NftContract, address _priceFeed,address[] memory tokenAddresses, address[] memory priceFeedAddresses) {
         nftContract = _NftContract;
-        priceFeed = AggregatorV3Interface(_priceFeed);
+        ethUsdpriceFeed = AggregatorV3Interface(_priceFeed);
+        if (tokenAddresses.length != priceFeedAddresses.length) {
+            revert NftMarketplace__TokenAddressesAndPriceFeedAddressesAmountsDontMatch();
+        }
+        for (uint i = 0; i < tokenAddresses.length; i++) {
+            TokensPriceFeeds[tokenAddresses[i]] = priceFeedAddresses[i]; 
+        }
     }
 
     ///////////////////
@@ -218,7 +235,7 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
         uint price,
         uint royality
     ) public view returns (uint256) {
-        (, int256 answer, , , ) = priceFeed.latestRoundData(); //200_000_000_000
+        (, int256 answer, , , ) = ethUsdpriceFeed.latestRoundData(); //200_000_000_000
 
         // answer in usd for eth
         /* 
@@ -348,6 +365,79 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
             marketItem.NftId
         );
     }
+    /// @notice only for the tokens which has 18 decimals or 8 decimals
+    /// @dev Buying the nft with existing erc
+    /// @param itemId is the id of the nft in the marketplace  
+    /// @param token is the address of the token to buy the nft in the marketplace    
+    /// @param amount is how much tokens     
+    function buyTheNftWithErc(uint itemId,address token,uint amount)  public{
+         if (token != address(0)) {
+            revert NftMarketplace__TokenAddressIsEmptyOrZeroAdress();
+         }
+         if (amount <= 0) {
+            revert NftMarketplace__AmountIsZeroForBuyingWithErc();
+         }
+         MarketItem storage marketItem = idToMarketItem[itemId];   
+         address payable originalSeller = marketItem.sellerOrOwner;
+         if (marketItem.sold) {
+            revert NftMarketplace__AlreadySold(itemId);
+        }
+        if (VerifyTheApproved(marketItem.NftId)) {
+            revert NftMarketplace__DidNotApproved(address(this));
+        }
+        if (
+            marketItem.sellerOrOwner == msg.sender ||
+            marketItem.Creator == msg.sender
+        ) {
+            revert NftMarketplace__CannotBuyHisToken(itemId);
+        }
+           uint tokenDecimals = IERC20Metadata(token).decimals(); 
+           uint price;
+           if (marketItem.isUsd) {
+             price = calculateUsdToPayPrice(marketItem.price);
+           }
+           else{ 
+            price = marketItem.price;  
+             
+           }
+        if (tokenDecimals == 18) {
+            // Logic for tokens with 18 decimals (most common, e.g., DAI, USDT, etc.)
+            // Your logic here
+          uint tokenToPay =  calculateTokenToEighteendecimals(price,token);
+               bool success =  IERC20Metadata(token).transferFrom(msg.sender,address(this),tokenToPay);
+               require(success, "Transfer failed");
+        
+        } else {
+            // Logic for tokens with 8 decimals (e.g., WBTC, BTC)
+            // Your logic here
+            calculateTokenToEightdecimals(price,token);
+
+
+            }
+    }
+     /* this is given correct */ 
+    function calculateTokenToEighteendecimals(uint Nftprice,address token) public view returns(uint) {
+        address pricefeed =TokensPriceFeeds[token];
+        (, int256 answer, , , ) = AggregatorV3Interface(pricefeed).latestRoundData();
+        //price 1eth = 2dai
+        //eth = 2/1 dai
+        console.log("(Nftprice * PRECISION)  from the contract",(Nftprice * PRECISION));
+        //4_000_000_000_000_000_000_000_000_000_000_000_000
+        console.log("(Nftprice)  from the contract",(Nftprice)); //2_000_000_000_000_000_000
+
+
+        console.log("answer  from the contract",uint(answer)); //1_000_000_000_000_000
+                    //2000 1e18 * 1e18              //6 1e18
+     uint amount =  (uint(answer) * Nftprice) /  ( PRECISION * PRECISION);  //2000000000000000000000
+     console.log("amount  from the contract",amount);    //1_000_000_000_000_000
+
+      return amount;
+
+        
+    }
+    function calculateTokenToEightdecimals(uint Nftprice,address token) public {
+        
+    } 
 
     function reListInTheMarket(uint _itemId,uint _price,bool _isUsd) public payable {
         if (!checkItExits(_itemId)) {
@@ -398,7 +488,7 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
     function calculateUsdToPayPrice(
         uint priceInUsd
     ) public view returns (uint) {
-        uint priceFromPricefeed = priceFromPriceFeed();
+        uint priceFromPricefeed = priceFromethUsdpriceFeed();
         uint priceFromPriceFeedInEth = priceFromPricefeed *
             ADDITIONAL_PRECISION;
         uint priceInUsdToEth = priceInUsd * PRECISION;
@@ -460,8 +550,8 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
         return idToMarketItem[tokendId];
     }
 
-    function getpriceFeed() public view returns (address) {
-        return address(priceFeed);
+    function getethUsdpriceFeed() public view returns (address) {
+        return address(ethUsdpriceFeed);
     }
 
     function getAllMarketItems() public view returns (MarketItem[] memory) {
@@ -475,8 +565,8 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
         return items;
     }
 
-    function priceFromPriceFeed() public view returns (uint) {
-        (, int256 answer, , , ) = priceFeed.latestRoundData();
+    function priceFromethUsdpriceFeed() public view returns (uint) {
+        (, int256 answer, , , ) = ethUsdpriceFeed.latestRoundData();
 
         return uint(answer);
     }
@@ -491,3 +581,5 @@ contract NftMarketplace is INFTEvents,ReentrancyGuard {
         return sellerOrOwner;
     }
 }
+//4 000000000000000000000 000_000_000_000_000
+//2 000000000000000000000
