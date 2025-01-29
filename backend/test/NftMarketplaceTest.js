@@ -23,7 +23,7 @@ describe("DEPLOYMENT", async () => {
   const symbol = "UDF"
   const tokenURI = "tokenUri"
   const price = ethers.parseEther("10")
-  const royality1 = 2 
+  const royality1 = 2  // in percentage
   const price1 = 2
   const DECIMALS = 8;
   const DECIMALSFOREIGHTEEN = 18
@@ -373,20 +373,32 @@ describe("DEPLOYMENT", async () => {
 
       })
       describe('Buy The Nft With ERC20', async() => { 
-it(" For calualting",async() => {
+           
+        it(" For calualting EIGHT",async() => {
+          await mockV3Aggregator.updateAnswer(150000000000)
+          // Destructure the tuple, capturing only the 'answer' (second element)
+                const [, answer] = await mockV3Aggregator.latestRoundData();
+                  console.log( "answer ETH_DAI_PRICE eight",answer);                                           //12 000
+                        const withErc =  await  nftMarketplace.calculateTokenToEightdecimals(ethers.parseEther("4"),dai.target)
+                        console.log("withErc",withErc)
 
-// Destructure the tuple, capturing only the 'answer' (second element)
+                      })
+      it(" For calualting EIGHTEEN", async() => {
+
+          // Destructure the tuple, capturing only the 'answer' (second element)
       await mockV3Aggregator.updateAnswer(ETH_DAI_PRICE)
       const [, answer] = await mockV3Aggregator.latestRoundData();
 
-
      const price =  await mockV3Aggregator.getAnswer(ETH_DAI_PRICE)
 
-      console.log( "answer ETH_DAI_PRICE",answer);                                           //12 000
-              const withErc =  await  nftMarketplace.calculateTokenToEighteendecimals(ethers.parseEther("3"),dai.target)
+              console.log( "answer ETH_DAI_PRICE",answer);                                           //12 000
+              const withErc =  await  nftMarketplace.calculateTokenToEighteendecimals(ethers.parseEther("2"),dai.target)
               console.log("withErc",withErc);
+            const royality =  await nftMarketplace.calculateTokenRoyality(withErc,2)
+            console.log("royality",royality);
+            
               
-})
+            })
        })
  
       
