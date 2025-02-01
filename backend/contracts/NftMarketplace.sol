@@ -35,19 +35,14 @@ import {INFTEvents} from "./Interface/INFTEvents.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/* 
-1.re-entrancy gaurd
 
-*/
-
-//completed  0)
-//Now   1) need to do this `4.can pay with erc-20(not my own,have to be existed erc-20s) now
 //need to   2) need  daily should complete one feature
-//3)calculateTokenToEighteendecimals and eight  tested
-//4)Missing NFT Transfer in ERC-20 Buy Function:
 
-/* written royality and tested , need to write the commission and test for it 
- */
+//completed  0)royality and tested  the commission and tested 
+//Now   1) need to do this `4.can pay with erc-20(not my own,have to be existed erc-20s) now
+       //4)Missing NFT Transfer in ERC-20 Buy Function:
+
+
 contract NftMarketplace is INFTEvents, ReentrancyGuard {
     ////////////////////
     // STATE VARIABLE//
@@ -60,6 +55,7 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
 
             //1e14 wei is 0.01% of 1 ether.
     uint256 commissionForNftMarketplace  = 1e14;
+    uint256 commissionforERC = 1;
 
     AggregatorV3Interface ethUsdpriceFeed;
     uint256 ADDITIONAL_PRECISION = 1e10;
@@ -341,6 +337,7 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     we have to take the   fee or commission from the user  and
      need to write for slippage protection */
     function buyTheNftWithErc(uint256 itemId, address token, uint256 amount) public nonReentrant {
+        //checks
         if (TokensPriceFeeds[token] == address(0)){
              revert NftMarketplace__UnsupportedToken();
         }
@@ -372,14 +369,24 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         uint royality;
         uint royalityToPay;
         uint commissionForBuyinWithErc;  
+         
+        //need to write interactions
+
+
+
+        
+        //effects
         if (tokenDecimals == 18) {
             // Logic for tokens with 18 decimals (most common, e.g., DAI, USDT, etc.)
             // Your logic here
             royality = calculateMarketFeeForEth(price, marketItem.royalityForCreator);
             tokenToPay = calculateTokenToEighteendecimals(price, token);
+           commissionForBuyinWithErc = calculateTheCommisionForErc(tokenToPay);   
+
 
               royalityToPay = calculateTokenRoyality(tokenToPay,royality);
-            bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this), tokenToPay + royalityToPay);
+            bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this), 
+            tokenToPay + royalityToPay + commissionForBuyinWithErc);
             require(success, "Transfer failed For 18 decimals");
 
         } else {
@@ -388,17 +395,22 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
 
             tokenToPay = calculateTokenToEightdecimals(price,token);
             royalityToPay = calculateTokenRoyality(tokenToPay,royality);
+            commissionForBuyinWithErc = calculateTheCommisionForErc(tokenToPay);   
 
-
-            bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this), tokenToPay + royalityToPay);
+            bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this),
+             tokenToPay + royalityToPay + commissionForBuyinWithErc);
             require(success, "Transfer failed For 8 decimals");
-
         }
         INFT(nftContract).safeTransferFrom(originalSeller, msg.sender, marketItem.NftId); 
 
 
     }
 
+//50_000_000_000_000_000
+    function calculateTheCommisionForErc(uint tokens) public view returns(uint) {
+            console.log("(tokens  * commissionforERC) /  PERCENT",(tokens  * commissionforERC) /  PERCENT);
+             return  (tokens  * commissionforERC) /  PERCENT; //100_000_000_000_000
+    }                                                                      //100_000_000_000_000
          //given correct
     function calculateTokenRoyality(uint amountOfTokens, uint royality) public view  returns(uint) {
       
@@ -411,11 +423,11 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
             revert NftMarketplace__ZeroRoyality();
         }
 
-    console.log("royality from the contract", (royality));
+    // console.log("royality from the contract", (royality));
 
-    console.log("(amountOfTokens * royality)  from the contract",(amountOfTokens * royality));
-    console.log("(amountOfTokens)  from the contract", uint(amountOfTokens)); 
-    console.log("(amountOfTokens * royality) / PERCENT from the contract",(amountOfTokens * royality) / PERCENT); 
+    // console.log("(amountOfTokens * royality)  from the contract",(amountOfTokens * royality));
+    // console.log("(amountOfTokens)  from the contract", uint(amountOfTokens)); 
+    // console.log("(amountOfTokens * royality) / PERCENT from the contract",(amountOfTokens * royality) / PERCENT); 
     return (amountOfTokens * royality) / PERCENT;
     
     } 

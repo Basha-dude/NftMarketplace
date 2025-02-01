@@ -396,7 +396,10 @@ describe("DEPLOYMENT", async () => {
               console.log("withErc",withErc);
             const royality =  await nftMarketplace.calculateTokenRoyality(withErc,2)
             console.log("royality",royality);
+            const commission = await nftMarketplace.calculateTheCommisionForErc(100)
+            console.log("commission",commission);
             
+          
               
             })
        })
