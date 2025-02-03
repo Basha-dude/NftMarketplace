@@ -46,5 +46,15 @@ interface INFTEvents {
     bool sold 
   );
 
+  event MarketPlace_buyTheNftWithErc (
+    uint256 Marketid,
+    uint256 NftId,
+    address  creator,
+  address  sellerOrOwner,
+  uint256 royalityForCreator,
+  uint256 tokensPaid,
+  uint decimals
+);
+
     
 }

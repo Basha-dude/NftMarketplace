@@ -28,9 +28,9 @@ describe("DEPLOYMENT", async () => {
   const DECIMALS = 8;
   const DECIMALSFOREIGHTEEN = 18
   const ETH_USD_PRICE = 200000000000;
-  const largeNumberStr = "3000000000000000000000";
+  const largeNumberStr = "2000000000000000000000";
   const ETH_DAI_PRICE = BigInt(largeNumberStr); 
-  const eTH_DAI_PRICE =  2000000000000000000000
+  // const eTH_DAI_PRICE =  2000000000000000000000
 
   const priceForUsd = 5500
 
@@ -108,13 +108,15 @@ describe("DEPLOYMENT", async () => {
           expect(YorN2).to.be.equal(false)
     })
     it("testing the createMarketItem in marketplace for eth",async() => {           
-      const fee = await nftMarketplace.calculateMarketFeeForEth(price1,royality1)
-      console.log("fee for the ETH",fee);
-
+      // const fee = await nftMarketplace.calculateMarketFeeForEth(price1,royality1)
+      // console.log("fee for the ETH",fee);
+                                                                     //   in ether
      const Tx = await nftMarketplace.connect(deployer).createMarketItem(1,price1,royality1,false,{value: ethers.parseUnits("0.04")})
      const TxReceipt = await Tx.wait()
-       const logs = TxReceipt.logs[0]
+       const logs = TxReceipt.logs[1]
       const args = logs.args
+      // console.log("args",args);
+      
       expect(args[0]).to.be.equal(BigInt(1))
       expect(args[1]).to.be.equal(BigInt(1))
       expect(args[2]).to.be.equal(deployer.address)
@@ -144,15 +146,16 @@ describe("DEPLOYMENT", async () => {
            it("testing the createMarketItem in marketplace for usd",async() => {   
             const Tx =  await nft.connect(deployer).mint(tokenURI)
             const TxReceipt = await Tx.wait()
-            await nft.connect(deployer).approve(nftMarketplace.target,2)
+
+            await nft.connect(deployer).approve(nftMarketplace.target, 2); // Approve token ID 2
 
 
-            const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
-            console.log("fee for the usd test HERE",fee);
+            // const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
+            // console.log("fee for the usd test HERE",fee);
             
             const TxCreate =  await nftMarketplace.connect(deployer).createMarketItem(2,priceForUsd,royality1,true,{value: ethers.parseEther("0.055")})
             const TxCreateReceipt = await TxCreate.wait()
-            const logs = TxCreateReceipt.logs[0]
+            const logs = TxCreateReceipt.logs[1]
             const args = logs.args
             expect(args[0]).to.be.equal(BigInt(2))
             expect(args[1]).to.be.equal(BigInt(2))
@@ -203,7 +206,6 @@ describe("DEPLOYMENT", async () => {
         expect(Array[6]).to.be.equal(false)
 
         Array = ArrayStwo[1]
-        // console.log("ARRAY 2",Array);
 
         expect(Array[0]).to.be.equal(2)
         expect(Array[1]).to.be.equal(2)
@@ -217,7 +219,7 @@ describe("DEPLOYMENT", async () => {
 
       })
 
-      describe('BUY AND RELIST IN MARKETPLACE', () => { 
+      describe('BUY AND RELIST IN MARKETPLACE', async () => { 
          it("BUY First NFT",async () => {
                const contractBalance = await ethers.provider.getBalance(nftMarketplace.target)
                const deployerBalance = await ethers.provider.getBalance(deployer.address)
@@ -225,8 +227,7 @@ describe("DEPLOYMENT", async () => {
               //  console.log("contractBalance",contractBalance); //0.08 
               //  console.log("deployerBalance",deployerBalance);//9999.908586230462626495
               //  console.log("UserBalance",UserBalance);//10000
-              await nft.connect(deployer).approve(nftMarketplace.target,1)
-
+            
               await nftMarketplace.connect(user).buy(1,{value:ethers.parseEther("2.0402")})
 
               const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
@@ -253,10 +254,8 @@ describe("DEPLOYMENT", async () => {
           console.log("deployerBalance",deployerBalance);//9999.908586230462626495
           console.log("UserBalance",UserBalance);//10000
 
-          const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
-          console.log("fee for the usd test HERE in 2nd id",fee);
-          await nft.connect(deployer).approve(nftMarketplace.target,2)
-
+          // const fee = await nftMarketplace.calculateMarketFeeForUsd(priceForUsd,royality1)
+          // console.log("fee for the usd test HERE in 2nd id",fee);
          await nftMarketplace.connect(user).buy(2,{value:ethers.parseEther("2.805276")}) // ONLY FEE + PRICE ,COMMISSION NOT ADDED
 
          const contractBalanceAfter = await ethers.provider.getBalance(nftMarketplace.target)
@@ -287,6 +286,7 @@ describe("DEPLOYMENT", async () => {
          })
       
       it(" test for reListInTheMarket for First Nft ",async () => {
+
           const Tx = await nftMarketplace.connect(user).reListInTheMarket(1,4,false,{value: ethers.parseEther("0.08")})
            const TxCreateReceipt = await Tx.wait()
             const logs =TxCreateReceipt.logs[0]
@@ -312,7 +312,8 @@ describe("DEPLOYMENT", async () => {
            })
 
            it(" test for reListInTheMarket for First Nft  to Revert For not giving Price",async () => {
-              await  expect( nftMarketplace.connect(user).reListInTheMarket(1,4,false)).to.be.revertedWith("Insuffient Eth for Listing")
+              
+              await expect(nftMarketplace.connect(user).reListInTheMarket(1,4,false)).to.be.revertedWith("Insuffient Eth for Listing");
 
            })
            it(" test for reListInTheMarket for First Nft  to Revert for not Exits",async () => {
@@ -372,8 +373,8 @@ describe("DEPLOYMENT", async () => {
 
 
       })
-      describe('Buy The Nft With ERC20', async() => { 
-           
+      describe('Buy The Nft With ERC20', () => { 
+
         it(" For calualting EIGHT",async() => {
           await mockV3Aggregator.updateAnswer(150000000000)
           // Destructure the tuple, capturing only the 'answer' (second element)
@@ -381,9 +382,8 @@ describe("DEPLOYMENT", async () => {
                   console.log( "answer ETH_DAI_PRICE eight",answer);                                           //12 000
                         const withErc =  await  nftMarketplace.calculateTokenToEightdecimals(ethers.parseEther("4"),dai.target)
                         console.log("withErc",withErc)
-
                       })
-      it(" For calualting EIGHTEEN", async() => {
+        it(" For calualting EIGHTEEN", async() => {
 
           // Destructure the tuple, capturing only the 'answer' (second element)
       await mockV3Aggregator.updateAnswer(ETH_DAI_PRICE)
@@ -394,35 +394,36 @@ describe("DEPLOYMENT", async () => {
               console.log( "answer ETH_DAI_PRICE",answer);                                           //12 000
               const withErc =  await  nftMarketplace.calculateTokenToEighteendecimals(ethers.parseEther("2"),dai.target)
               console.log("withErc",withErc);
-            const royality =  await nftMarketplace.calculateTokenRoyality(withErc,2)
-            console.log("royality",royality);
-            const commission = await nftMarketplace.calculateTheCommisionForErc(100)
-            console.log("commission",commission);
+           
             
-          
-              
+      
             })
+
+
+          // givng error for the  approves ones
+        it("BUY TEST",async ()=>{
+
+          const TxNft =  await nft.connect(deployer).mint(tokenURI)
+          const TxNftReceipt = await TxNft.wait()
+
+          const daiAmountToMint = ethers.parseUnits("1000000", 18); // Minting 100 DAI
+          await dai.connect(deployer).mint(user.address, daiAmountToMint);
+         
+          // Replace with something like:
+          await dai.connect(user).approve(nftMarketplace.target,ethers.MaxUint256);
+          await nft.connect(deployer).approve(nftMarketplace.target, 3)
+
+          const TxCreate = await nftMarketplace.connect(deployer).createMarketItem(3,price1,royality1,false,{value: ethers.parseUnits("0.04")})
+          const TxCreateReceipt = await TxCreate.wait()
+          
+          const Tx = await nftMarketplace.connect(user).buyTheNftWithErc(3,dai.target,ethers.parseUnits("4160", 18))
+          const TxReceipt = await Tx.wait()
+
+        })
        })
  
       
     })
 
     })
-  // //given 27500_000_000_000_000
-  // // need 275_000_000_000_000
-             
-  //         275000_000_000_000
-  // //        2_750_000_000_000
-  // //2750_000_000_000
-
-  //1000000000000000
-  //1000000000000000
-
-  //10100000000000000
-  //10100000000000000
-
-  //10000000000000000000
-  //10000000000000000000
-
-
- //git commit m "completed test commission and all"
+ 

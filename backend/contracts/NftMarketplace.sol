@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
-
-// Uncomment this line to use console.log
-import "hardhat/console.sol";
-
 /* 
 *****
 SWAPPING******
@@ -26,6 +20,16 @@ Enable NFTs to act as access passes for events, platforms, or exclusive content.
 
 /* 
 these imports which not inhereted for is for ABI, to interact with a contract we need ABI and its address */
+
+
+
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.9;
+
+// Uncomment this line to use console.log
+import "hardhat/console.sol";
+
 import {INFT} from "./Interface/INFT.sol";
 import {NFT} from "./NFT.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -34,16 +38,19 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 import {INFTEvents} from "./Interface/INFTEvents.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+// for to transfer to the contract 
+import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+
+
 
 
 //need to   2) need  daily should complete one feature
 
 //completed  0)royality and tested  the commission and tested 
 //Now   1) need to do this `4.can pay with erc-20(not my own,have to be existed erc-20s) now
-       //4)Missing NFT Transfer in ERC-20 Buy Function:
+        //2) written event and tested 
 
-
-contract NftMarketplace is INFTEvents, ReentrancyGuard {
+contract NftMarketplace is INFTEvents, ReentrancyGuard,ERC721Holder {
     ////////////////////
     // STATE VARIABLE//
     //////////////////
@@ -52,10 +59,10 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     address nftContract;
     uint256 PRECISION = 1e18;
     uint256 PERCENT = 100;
+    uint256 public commissionBasisPoints = 200; // 2% = 200/10000
 
-            //1e14 wei is 0.01% of 1 ether.
+            //1e14 wei is 0.0001% of 1 ether.
     uint256 commissionForNftMarketplace  = 1e14;
-    uint256 commissionforERC = 1;
 
     AggregatorV3Interface ethUsdpriceFeed;
     uint256 ADDITIONAL_PRECISION = 1e10;
@@ -149,6 +156,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         payable
         returns (uint256)
     {
+        console.log("from createMarketItem");
+        //checks
         address creator = INFT(nftContract).ownerOf(tokenId);
         if (_price <= 0) {
             revert NftMarketplace__PriceIsZero(_price);
@@ -157,19 +166,25 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         if (_royalityForCreator <= 0) {
             revert NftMarketplace__RoyalityCreator(_royalityForCreator);
         }
-        if (_royalityForCreator > 25) {
+        if (_royalityForCreator > 10) {
             revert NftMarketplace__RoyalityCreatorIsTooHigh(_royalityForCreator);
         }
+        uint price;
         if (isUsd) {
-            console.log("logged ito the usd");
-            uint256 feeForPriceInUSD = calculateMarketFeeForUsd(_price, _royalityForCreator);
+             price = _price;    
+            console.log(" from createMarketItem -> logged ito the usd");
+            uint256 feeForPriceInUSD = calculateMarketFeeForUsd(price, _royalityForCreator);
             require(msg.value >= feeForPriceInUSD, "pay the fee for price in usd");
         } else {
+            price = _price;
+            console.log("price from createitesm in eth",price);
+            console.log("_______price from createitesm in eth",_price);
+
             console.log("logged ito the ETH");
 
-            uint256 feeForPriceInEth = calculateMarketFeeForEth(_price, _royalityForCreator);
+            uint256 feeForPriceInEth = calculateMarketFeeForEth(price, _royalityForCreator);
             console.log("feeForPriceInEth from the contract", feeForPriceInEth);
-            console.log("price from the contract IN ETH", _price);
+            console.log("price from the contract IN ETH", price);
             console.log("royality from the contract IN ETH", _royalityForCreator);
 
             require(msg.value >= feeForPriceInEth, "pay the fee for price in eth");
@@ -179,12 +194,15 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
             revert NftMarketplace__NotTheOwner(msg.sender);
         }
 
+        //effects
+
         ItemId++;
         MarketItem memory marketItem = MarketItem(
-            ItemId, tokenId, payable(creator), payable(msg.sender), _royalityForCreator, _price, isUsd, false
+            ItemId, tokenId, payable(creator), payable(msg.sender), _royalityForCreator, price, isUsd, false
         );
-
+     ///interactions
         idToMarketItem[ItemId] = marketItem;
+        INFT(nftContract).safeTransferFrom((msg.sender), address(this), tokenId);
 
         emit MarketPlace_CreateMarketItem(
             ItemId, tokenId, creator, payable(msg.sender), _royalityForCreator, _price, isUsd, false
@@ -194,23 +212,34 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
 
     /// @notice taking royality as percent
     /// @dev calculating on basis of price and royality
-    /// @param price price of the nft
-    ///@param royality royality of the nft
+    /// @param price price of the nft (in wei)
+    ///@param royality royality of the nft (in percentage)
     /// @return fee to pay
 
-    function calculateMarketFeeForEth(uint256 price, uint256 royality) public view returns (uint256) {
+                                            //in wei           in percentage          
+     function calculateMarketFeeForEth(uint256 price, uint256 royality) public view returns (uint256) {
         //10  *  1e18
-        uint256 PriceInEther = price * PRECISION;
-        //  console.log("PriceInEther from contract",PriceInEther);
-        //  console.log("(PriceInEther * royality)",(PriceInEther * royality));
+        console.log("from calculateMarketFeeForEth");
+
+        uint256 PriceInEther = price ;
+         console.log("calculateMarketFeeForEth PriceInEther from contract",PriceInEther);
+         console.log("(PriceInEther * royality)",(PriceInEther * royality));
         //  console.log("PERCENT from the contract",PERCENT);
         //  console.log("price from the contract",price);
-        //  console.log("royality from the contract",royality);
-        uint256 fee = (PriceInEther * royality) / PERCENT;
+         console.log("royality from the contract in eth",royality);
+          /* took here precision for not truncate the value */
+        uint256 fee = (PriceInEther  * PRECISION * royality) / PERCENT;
+        console.log("fee from the contract in eth",fee);
+
         return fee;
+
     }
 
-    function calculateMarketFeeForUsd(uint256 price, uint256 royality) public view returns (uint256) {
+
+    /* this(calculateMarketFeeForUsd) is correct also correct for normal and low values */
+
+//                                          normal like 4000,  2 in percentage 
+     function calculateMarketFeeForUsd(uint256 price, uint256 royality) public view returns (uint256) {
         (, int256 answer,,,) = ethUsdpriceFeed.latestRoundData(); //200_000_000_000
 
         // answer in usd for eth
@@ -218,26 +247,34 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     e.x. 1 ETH = $2000  
          4000/2000 = 2
      */
-        console.log("price from the contract in USD", price); //5500
-        console.log("royality from the contract in USD", royality);
-        console.log("answer from the contract in USD", uint256(answer)); //200_000_000_000
+    console.log("from calculateMarketFeeForUsd -> "); //5500
+
+        // console.log("calculateMarketFeeForUsd -> price from the contract in USD", price); //5500
+        // console.log("royality from the contract in USD", royality);
+        // console.log("answer from the contract in USD", uint256(answer)); //200_000_000_000
         uint256 answerInUsd = uint256(answer) * ADDITIONAL_PRECISION; //2_000_000_000_000_000_000_000
 
-        console.log("answerInUsd from the contract in USD", answerInUsd); //2_000_000_000_000_000_000_000
-        console.log("uint(answer) * ADDITIONAL_PRECISION in USD ", uint256(answer) * ADDITIONAL_PRECISION); //2_000_000_000_000_000_000_000
+        // console.log("answerInUsd from the contract in USD", answerInUsd); //2_000_000_000_000_000_000_000
+        // console.log("uint(answer) * ADDITIONAL_PRECISION in USD ", uint256(answer) * ADDITIONAL_PRECISION); //2_000_000_000_000_000_000_000
 
         uint256 priceToEthDecimal = price * PRECISION;
-        console.log("price * PRECISION in USD", price * PRECISION); //2_000_000_000_000_000_000
-        console.log("priceToEthDecimal in USD", priceToEthDecimal); //2 000 000 000 000 000 000
+        // console.log("price * PRECISION in USD", price * PRECISION); //2_000_000_000_000_000_000
+        // console.log("priceToEthDecimal in USD", priceToEthDecimal); //2 000 000 000 000 000 000
 
         // 4_000_000_000_000_000_000_000 /
         // 2_000_000_000_000_000_000_000
-        console.log("priceToEthDecimal in USD", priceToEthDecimal);
-        console.log("answerInUsd from the contract in USD", answerInUsd);
+        // console.log("priceToEthDecimal in USD", priceToEthDecimal);
+        // console.log("answerInUsd from the contract in USD", answerInUsd);
         //priceToEthDecimal             2_000_000_000_000_000_000
         //answerInUsd from the contract 2_000_000_000_000_000_000_000
+
+        /* 
+        here using `PRECISION` because not to truncate the value , means 2.75 -> 2 
+        
+        */
         uint256 eth = (priceToEthDecimal * PRECISION) / answerInUsd; //0
         console.log("eth IN USD", eth);
+        console.log("for price",price);
 
         uint256 fee = (eth * royality) / PERCENT;
         console.log("eth * royality * PRECISION) IN USD ", (eth * royality * PRECISION));
@@ -259,9 +296,6 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
 
         if (marketItem.sold) {
             revert NftMarketplace__AlreadySold(itemId);
-        }
-        if (VerifyTheApproved(marketItem.NftId)) {
-            revert NftMarketplace__DidNotApproved(address(this));
         }
         if (marketItem.sellerOrOwner == msg.sender || marketItem.Creator == msg.sender) {
             revert NftMarketplace__CannotBuyHisToken(itemId);
@@ -325,19 +359,28 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
             revert NftMarketplace__BuyCreatorRoyalityTransferFailed();
         }
 
-        INFT(nftContract).safeTransferFrom(originalSeller, msg.sender, marketItem.NftId);
-    }   
+        INFT(nftContract).safeTransferFrom(address(this), msg.sender, marketItem.NftId);    }   
+
     /// @notice only for the tokens which has 18 decimals or 8 decimals
     /// @dev Buying the nft with existing erc
     /// @param itemId is the id of the nft in the marketplace
     /// @param token is the address of the token to buy the nft in the marketplace
     /// @param amount is how much tokens
 
+
+    /*
+
+      * need to take the amount of tokens as ethers.parseUnits("",18) from the frontend
+    */
     /* 
     we have to take the   fee or commission from the user  and
      need to write for slippage protection */
     function buyTheNftWithErc(uint256 itemId, address token, uint256 amount) public nonReentrant {
-        //checks
+        
+       //checks
+       console.log("from buyTheNftWithErc");
+       console.log(" ");
+
         if (TokensPriceFeeds[token] == address(0)){
              revert NftMarketplace__UnsupportedToken();
         }
@@ -352,9 +395,7 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         if (marketItem.sold) {
             revert NftMarketplace__AlreadySold(itemId);
         }
-        if (VerifyTheApproved(marketItem.NftId)) {
-            revert NftMarketplace__DidNotApproved(address(this));
-        }
+       
         if (marketItem.sellerOrOwner == msg.sender || marketItem.Creator == msg.sender) {
             revert NftMarketplace__CannotBuyHisToken(itemId);
         }
@@ -363,76 +404,171 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         if (marketItem.isUsd) {
             price = calculateUsdToPayPrice(marketItem.price);
         } else {
-            price = marketItem.price;
+            price = marketItem.price * PRECISION;
         }
         uint256 tokenToPay;
         uint royality;
         uint royalityToPay;
         uint commissionForBuyinWithErc;  
+        uint allWithPrecisions;
          
         //need to write interactions
 
-
+         marketItem.sellerOrOwner = payable(msg.sender);
 
         
         //effects
         if (tokenDecimals == 18) {
+            console.log(" from 18");
+
             // Logic for tokens with 18 decimals (most common, e.g., DAI, USDT, etc.)
             // Your logic here
             royality = calculateMarketFeeForEth(price, marketItem.royalityForCreator);
-            tokenToPay = calculateTokenToEighteendecimals(price, token);
-           commissionForBuyinWithErc = calculateTheCommisionForErc(tokenToPay);   
+            console.log("marketItem.royalityForCreator from 18",marketItem.royalityForCreator);  // in percentage
 
+            console.log("royality from 18",royality); //40000000000000000
+                    
+            tokenToPay = calculateTokenToEighteendecimals(price,token);
+            console.log("tokenToPay from 18",tokenToPay);
+            console.log("price from 18",price);
+            console.log("token from 18",token);
 
-              royalityToPay = calculateTokenRoyality(tokenToPay,royality);
+          
+
+        //    commissionForBuyinWithErc = calculateTheCommisionForErc(token);   
+        commissionForBuyinWithErc = (tokenToPay * commissionBasisPoints) / 10000;
+                                                                //40000000000000000
+              royalityToPay = calculateTokenRoyality(tokenToPay,royality,token);
+              console.log("royalityToPay from 18 contract",royalityToPay);
+              console.log("commissionForBuyinWithErc from 18 contract",commissionForBuyinWithErc);
+                                          //4000          //80
+              console.log("total for 18",tokenToPay + royalityToPay + commissionForBuyinWithErc); 
+            allWithPrecisions = (tokenToPay * PRECISION) +(royalityToPay * PRECISION) + commissionBasisPoints;
+                 console.log("allWithPrecisions",allWithPrecisions);
+              require(amount >= allWithPrecisions, "Insufficient payment amount from 18");
             bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this), 
             tokenToPay + royalityToPay + commissionForBuyinWithErc);
             require(success, "Transfer failed For 18 decimals");
 
         } else {
+            console.log(" from 8");
+
             // Logic for tokens with 8 decimals (e.g., WBTC, BTC)
             // Your logic here
 
             tokenToPay = calculateTokenToEightdecimals(price,token);
-            royalityToPay = calculateTokenRoyality(tokenToPay,royality);
-            commissionForBuyinWithErc = calculateTheCommisionForErc(tokenToPay);   
+            console.log("tokenToPay from 8",tokenToPay);
 
+            royalityToPay = calculateTokenRoyality(tokenToPay,royality,token);
+            commissionForBuyinWithErc = calculateTheCommisionForErc(token);   
+            console.log("total for 8",tokenToPay + royalityToPay + commissionForBuyinWithErc);
+           
+            uint256 totalRequired = tokenToPay + royalityToPay + commissionForBuyinWithErc;
+            require(amount >= totalRequired, "Insufficient payment amount from 8");
             bool success = IERC20Metadata(token).transferFrom(msg.sender, address(this),
+
              tokenToPay + royalityToPay + commissionForBuyinWithErc);
             require(success, "Transfer failed For 8 decimals");
         }
-        INFT(nftContract).safeTransferFrom(originalSeller, msg.sender, marketItem.NftId); 
+        INFT(nftContract).safeTransferFrom(address(this), msg.sender, marketItem.NftId);
+                emit MarketPlace_buyTheNftWithErc(
+             itemId,
+             marketItem.NftId,  
+            marketItem.Creator,
+            originalSeller,
+               royalityToPay,
+              tokenToPay, 
+             tokenDecimals
+            );
+        
 
 
     }
 
-//50_000_000_000_000_000
-    function calculateTheCommisionForErc(uint tokens) public view returns(uint) {
-            console.log("(tokens  * commissionforERC) /  PERCENT",(tokens  * commissionforERC) /  PERCENT);
-             return  (tokens  * commissionforERC) /  PERCENT; //100_000_000_000_000
-    }                                                                      //100_000_000_000_000
-         //given correct
-    function calculateTokenRoyality(uint amountOfTokens, uint royality) public view  returns(uint) {
-      
+/*  convert 1e14 ETH into tokens:-
+ uint EthAmount = 1e14 to convert tokens
+  so EthAmount * (price / 1 ether) = 1e14 * ((price)/ 1 ETH)
+  FORMULA:- Total Tokens= ETH Amount * (tokens/ETH)
+
+  and to convert to eth divide like this , to covert interms divide it interms of it
+  like to convert to eth, divide it by eth.
+          1e18 * (2000/ 1 eth) =  2000 tokens
+ */    function calculateTheCommisionForErc(address token) public view returns(uint) {  
+        console.log(" from calculateTheCommisionForErc");
+        console.log(" ");
+
+        address pricefeed = TokensPriceFeeds[token];
+        if (pricefeed == address(0)) {
+            revert NftMarketplace__TokenNotSupported(token);
+        }
+        (, int256 answer,,,) = AggregatorV3Interface(pricefeed).latestRoundData();
+         // Check for valid price
+    if (answer <= 0) {
+        revert NftMarketplace__ZeroPriceFeed();
+    }
+
+    /* 
+     ikkada precision / anwser undali kaani ikkada price feed nunchi manam price 2000 * 1e18  use chesaamu 
+     and ikkada 
+     
+    */
+            uint oneTokenInwei = (PRECISION) / (uint(answer) / PRECISION);
+            console.log("oneTokenInwei",oneTokenInwei);
+            console.log("((commissionForNftMarketplace  * uint (answer))/ PRECISION)",((commissionForNftMarketplace  * uint (answer))/ PRECISION));
+                    /* 
+                    1)How much ETH do I need for 2000 tokens?" → Divide 
+                    2)"How many tokens do I get for 1 ETH?" → Multiply */
+
+            return((commissionForNftMarketplace  * uint(answer))/ PRECISION);       
+
+    }                                                                     
+         //given correct   
+                                      // 4000           royality in eth
+    function calculateTokenRoyality(uint amountOfTokens, uint royality,address token) public view  returns(uint) {
+        console.log("from calculateTokenRoyality");
+        console.log(" ");
+
+
+        address pricefeed = TokensPriceFeeds[token];
+        if (pricefeed == address(0)) {
+            revert NftMarketplace__TokenNotSupported(token);
+        }
+        (, int256 answer,,,) = AggregatorV3Interface(pricefeed).latestRoundData();
+         // Check for valid price
+    if (answer <= 0) {
+        revert NftMarketplace__ZeroPriceFeed();
+    }
          // Check for valid price
     if (amountOfTokens <= 0) {
         revert NftMarketplace__ZeroTokensForCalulatingRoyality();
     }
+        
          // Check for valid price
          if (royality <= 0) {
             revert NftMarketplace__ZeroRoyality();
         }
 
+        /* 
+           1) answer ni precision tho dvide chesthuannam
+            because it gives like this 2000*1e18 so we need to get the actual price
+        2)ikkada preciosion ni price tho divide chesthunnam to get value of one token in wei  */
+        uint oneTokenInwei = (PRECISION) / (uint(answer) / PRECISION);
     // console.log("royality from the contract", (royality));
 
-    // console.log("(amountOfTokens * royality)  from the contract",(amountOfTokens * royality));
-    // console.log("(amountOfTokens)  from the contract", uint(amountOfTokens)); 
-    // console.log("(amountOfTokens * royality) / PERCENT from the contract",(amountOfTokens * royality) / PERCENT); 
-    return (amountOfTokens * royality) / PERCENT;
+    // console.log("(amountOfTokens * royality)  from the contract",(amountOfTokens * PRECISION ));
+    // console.log("(PERCENT * PRECISION)  from the contract",(PERCENT * royality)); 
+
+
+    console.log("oneTokenInwei from  calculateTokenRoyality",oneTokenInwei);//500000000000000
+    console.log("royality / (PRECISION * oneTokenInwei", royality / (PRECISION * oneTokenInwei));
+      console.log("answer",uint(answer));
+    return (royality / (PRECISION * oneTokenInwei)); //given correct need to change in test
+
     
     } 
 
     function calculateTokenToEighteendecimals(uint256 Nftprice, address token) public view returns (uint256) {
+        console.log("calculateTokenToEighteendecimals");
 
         address pricefeed = TokensPriceFeeds[token];
         if (pricefeed == address(0)) {
@@ -449,7 +585,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         //4_000_000_000_000_000_000_000_000_000_000_000_000
         console.log("(Nftprice)  from the contract", (Nftprice)); //2_000_000_000_000_000_000
 
-        console.log("answer  from the contract", uint256(answer)); //1_000_000_000_000_000
+        console.log("answer  from the contract calculateTokenToEighteendecimals", uint256(answer)); //1_000_000_000_000_000
+
             //2000 1e18 * 1e18              //6 1e18
         uint256 amount = (uint256(answer) * Nftprice) / (PRECISION * PRECISION); //2000000000000000000000
         console.log("amount  from the contract", amount); //1_000_000_000_000_000
@@ -458,6 +595,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     }
 
     function calculateTokenToEightdecimals(uint256 Nftprice, address token) public view returns (uint256) {
+    
+        console.log("calculateTokenToEightdecimals");
         address pricefeed = TokensPriceFeeds[token];
         if (pricefeed == address(0)) {
             revert NftMarketplace__TokenNotSupported(token);
@@ -471,7 +610,7 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
         //4_000_000_000_000_000_000_000_000_000_000_000_000
         console.log("(Nftprice)  from the contract", (Nftprice)); //2_000_000_000_000_000_000
 
-        console.log("answer  from the contract", uint256(answer)); //1_000_000_000_000_000
+        console.log("answer  from the contract calculateTokenToEightdecimals", uint256(answer)); //1_000_000_000_000_000
             //2000 1e18 * 1e18              //6 1e18
         uint256 amount = (uint256(answer) * ADDITIONAL_PRECISION * Nftprice) / (PRECISION * PRECISION); //2000000000000000000000
         console.log("amount  from the contract", amount); //1_000_000_000_000_000
@@ -479,6 +618,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     }
 
     function reListInTheMarket(uint256 _itemId, uint256 _price, bool _isUsd) public payable {
+       
+        console.log("reListInTheMarket");
         if (!checkItExits(_itemId)) {
             revert NftMarketplace__NotExist(_itemId);
         }
@@ -498,7 +639,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
             require(msg.value >= feeTopay, "Insuffient Usd for Listing");
         } else {
             feeTopay = calculateMarketFeeForEth(_price, marketItem.royalityForCreator);
-            require(msg.value >= feeTopay, "Insuffient Eth for Listing");
+            console.log("feeTopay",feeTopay);
+            require(msg.value >= feeTopay, "Insuffient Eth for Listing"); 
         }
 
         marketItem.price = _price;
@@ -522,6 +664,7 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     }
 
     function calculateUsdToPayPrice(uint256 priceInUsd) public view returns (uint256) {
+        console.log("calculateUsdToPayPrice");
         uint256 priceFromPricefeed = priceFromethUsdpriceFeed();
         uint256 priceFromPriceFeedInEth = priceFromPricefeed * ADDITIONAL_PRECISION;
         uint256 priceInUsdToEth = priceInUsd * PRECISION;
@@ -542,6 +685,8 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard {
     // }
 
     function calculateTheCommision(uint256 price) public view returns (uint256) {
+        console.log("calculateTheCommision");
+
         uint256 intermediateStep1 = price * commissionForNftMarketplace;
         console.log("intermediateStep1:", intermediateStep1);
 
