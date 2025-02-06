@@ -12,7 +12,7 @@ describe("DEPLOYMENT", async () => {
   /////////////
   //  LET    //
   ////////////
-  let deployer,user,nft,nftMarketplace,mockV3Aggregator,user1,dai
+  let deployer,user,nft,nftMarketplace,mockV3Aggregator,user1,dai,wBtc
 
 
   /////////////
@@ -43,8 +43,12 @@ describe("DEPLOYMENT", async () => {
   
         const NftMarketplace = await ethers.getContractFactory("NftMarketplace")
         const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
+        const ERC20MockEight = await ethers.getContractFactory("ERC20MockEight");
+
         dai = await ERC20Mock.connect(user1).deploy("DAI_COIN","DAI",user1.address,1000);
-        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target,[dai.target],[mockV3Aggregator.target])
+        wBtc = await ERC20MockEight.connect(user1).deploy("WBTC_COIN","WBTC",user1.address,1000);
+
+        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target,[dai.target,wBtc.target],[mockV3Aggregator.target,mockV3Aggregator.target])
         
 
 })
@@ -394,14 +398,10 @@ describe("DEPLOYMENT", async () => {
               console.log( "answer ETH_DAI_PRICE",answer);                                           //12 000
               const withErc =  await  nftMarketplace.calculateTokenToEighteendecimals(ethers.parseEther("2"),dai.target)
               console.log("withErc",withErc);
-           
-            
-      
             })
 
 
-          // givng error for the  approves ones
-        it("BUY TEST",async ()=>{
+        it("BUY TEST FOR 18",async ()=>{
 
           const TxNft =  await nft.connect(deployer).mint(tokenURI)
           const TxNftReceipt = await TxNft.wait()
@@ -420,6 +420,26 @@ describe("DEPLOYMENT", async () => {
           const TxReceipt = await Tx.wait()
 
         })
+
+          // givng error for the  approves ones
+          it("BUY TEST FOR 8",async ()=>{
+
+            const TxNft =  await nft.connect(deployer).mint(tokenURI)
+            const TxNftReceipt = await TxNft.wait()
+  
+            const daiAmountToMint = ethers.parseUnits("1000000", 8); // Minting 100 DAI
+            await wBtc.connect(deployer).mint(user.address, daiAmountToMint);
+           
+            // Replace with something like:
+            await wBtc.connect(user).approve(nftMarketplace.target,ethers.MaxUint256);
+            await nft.connect(deployer).approve(nftMarketplace.target,4)
+  
+            const TxCreate = await nftMarketplace.connect(deployer).createMarketItem(4,4000,royality1,true,{value: ethers.parseUnits("0.04")})
+            const TxCreateReceipt = await TxCreate.wait()
+
+            const Tx = await nftMarketplace.connect(user).buyTheNftWithErc(4,wBtc.target,ethers.parseUnits("4080.00002", 8))
+            const TxReceipt = await Tx.wait()
+          })
        })
  
       
