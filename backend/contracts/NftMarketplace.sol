@@ -1,20 +1,14 @@
 /* 
 *****
-SWAPPING******
+SWAPPING Or Exchange******
 1.staking
-3.dao
 4.from the erc20 we need stake them in the staking platform
-
 6.bridges or interoperability protocols.
 7.Lending/Borrowing:
 8.Auctions
-9.NFT Bundles: 
 10. In-Platform Messaging:
 Allow buyers and sellers to communicate directly through a secure chat system.
-11. Gamification:
-Add achievement badges for users based on their activity (e.g., "Top Seller," "Early Supporter").
-12.NFT as Membership Tokens:
-Enable NFTs to act as access passes for events, platforms, or exclusive content.
+
 */
 
 /* 
@@ -34,14 +28,13 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 import {INFTEvents} from "./Interface/INFTEvents.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-// for to transfer to the contract
+// for to transfer nft  to the contract
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 //need to   2) need  daily should complete one feature
 
 //completed  0)royality and tested  the commission and tested
-//Now   1) need to do this `4.can pay with erc-20(not my own,have to be existed erc-20s) now
-//2) written event and tested
+//Now   1) written and tested for buyWithErc and need to test with small values
 
 contract NftMarketplace is INFTEvents, ReentrancyGuard, ERC721Holder {
     ////////////////////
