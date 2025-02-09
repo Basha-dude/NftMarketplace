@@ -360,6 +360,113 @@ contract NftMarketplace is INFTEvents, ReentrancyGuard, ERC721Holder {
     /* 
     we have to take the   fee or commission from the user  and
      need to write for slippage protection */
+
+   /* 
+   AUDIT:  
+    * Tokens
+       Reentrant Calls:-
+         Some tokens allow reentrant calls on transfer (e.g. ERC777 tokens).
+         This has been exploited in the wild on multiple occasions (e.g. imBTC Uniswap pool drained, lendf.me drained)
+         example: Reentrant.sol
+    * need to check fee on transfers,
+    *  blacklist or white list tokens
+    * some tokens will revert on zero transfers
+    * Rebasing untaai
+    * and proxy kuda untai
+    * Slippage ledhu
+    * Some tokens (e.g. USDC, USDT) have a contract level admin controlled address blocklist. 
+        If an address is blocked, then transfers to and from that address are forbidden.
+        Malicious or compromised token owners can trap funds in a contract 
+        by adding the contract address to the blocklist.
+    * Some tokens do not return a bool (e.g. USDT, BNB, OMG) on ERC20 methods
+    * Flash Mintable Tokens:
+       Some tokens (e.g. DAI) allow for so called "flash minting",
+       which allows tokens to be minted for the duration of one transaction only, 
+       provided they are returned to the token contract by the end of the transaction.
+    * Pausable Tokens:
+        Some tokens can be paused by an admin (e.g. BNB, ZIL).
+        Similary to the blocklist issue above, an admin controlled pause feature opens users of the token
+         to risk from a malicious or compromised token owner.
+    * Approval Race Protections:
+        Some tokens (for example, USDT and KNC) implement a protection mechanism by requiring that you set the allowance to 0 first,
+         before setting a new nonzero allowance.
+         This two-step process prevents the race condition:
+        First transaction: Set the allowance to 0.
+        Second transaction: Set the new desired allowance (e.g., 200 tokens).
+        PROBLEM: when set some tokens for approval, the reciver used some means(non zero antey motham kaakunda)
+        tharvatha malli inkonni tokens ni approve chesthey adhi reject avthadhi, because to set new allowance
+        we need to set 0 first after we can do approve new allowance.
+        SUMMARY: To give additional allowance need to set 0 first, after need to set new allowance
+        PROTECTION: Approval Race Protections meant to protect against a known race condition vulnerability.
+        EXPLOIT:Race condition vulnerability means 
+         Step 1: Alice approves Bob to spend 100 tokens from her account.
+         Step 2: Later, Alice decides to change Bob’s allowance to 200 tokens by calling approve again.
+         Step 3: Meanwhile, Bob (or an attacker acting as Bob) is quick enough to observe this change and, before the new approval is finalized, uses the original allowance of 100 tokens.
+         Step 4: Due to the timing of blockchain transactions, Bob might then also be able to use the new allowance of 200 tokens.
+         Result: Bob could end up spending a total of 300 tokens instead of the intended 200 tokens
+    *Revert on Approval To Zero Address
+         Some tokens (e.g. OpenZeppelin) will revert if trying to approve the zero address to spend tokens (i.e. a call to approve(address(0), amt)).
+
+    * Revert on Zero Value Approvals
+         Some tokens (e.g. BNB) revert when approving a zero value amount (i.e. a call to approve(address, 0)).
+    * Revert on Zero Value Transfers
+         Some tokens (e.g. LEND) revert when transferring a zero value amount.
+    *Low Decimals
+         Some tokens have low decimals (e.g. USDC has 6). Even more extreme, some tokens like Gemini USD only have 2 decimals.
+         This may result in larger than expected precision loss.
+         example: LowDecimals.sol
+    * High Decimals
+         Some tokens have more than 18 decimals (e.g. YAM-V2 has 24).
+         This may trigger unexpected reverts due to overflow, posing a liveness risk to the contract.
+         example: HighDecimals.sol
+    * transferFrom with src == msg.sender
+         Some token implementations (e.g. DSToken) will not attempt to decrease the caller's allowance if the sender is the same as the caller. This gives transferFrom the same semantics as transfer in this case. Other implementations (e.g. OpenZeppelin, Uniswap-v2) will attempt to decrease the caller's allowance from the sender in transferFrom even if the caller and the sender are the same address,
+         giving transfer(dst, amt) and transferFrom(address(this), dst, amt) a different semantics in this case.
+         examples:
+         Examples of both semantics are provided:
+         ERC20.sol: does not attempt to decrease allowance
+         TransferFromSelf.sol: always attempts to decrease the allowance  
+         Problem: If your system assumes that transferFrom does not decrease allowances when src == msg.sender (like in DSToken), 
+         it will fail with tokens that always decrement allowances (like OpenZeppelin).
+    * Non string metadata
+         Some tokens (e.g. MKR) have metadata fields (name / symbol) encoded as bytes32 instead of the string prescribed by the ERC20 specification.
+         This may cause issues when trying to consume metadata from these tokens.
+    * Revert on Transfer to the Zero Address
+         Some tokens (e.g. openzeppelin) revert when attempting to transfer to address(0).
+         This may break systems that expect to be able to burn tokens by transferring them to address(0).
+    * Revert on Large Approvals & Transfers
+         Some tokens (e.g. UNI, COMP) revert if the value passed to approve or transfer is larger than uint96.
+         Both of the above tokens have special case logic in approve that sets allowance to type(uint96).max if the approval amount is uint256(-1),
+          which may cause issues with systems that expect the value passed to approve to be reflected in the allowances mapping.
+
+    * Transfer of less than amount:
+        The Core Issue:
+         Some tokens (like cUSDCv3, Compound-Style cTokens,cUSDC, cDAI,) have a special feature where if you try to transfer the maximum possible value (type(uint256).max), they'll actually transfer your entire current balance instead of this impossibly large number. This can create accounting errors in systems that blindly trust user input amounts.
+
+         Example Scenario:
+         Imagine you have 100 tokens in your wallet
+
+         You interact with a Vault contract and tell it: "I want to deposit type(uint256).max tokens"
+
+         The Vault calls token.transferFrom(msg.sender, vaultAddress, amount) using your input amount
+
+         Instead of failing (since you don't have max tokens),
+         the token contract actually transfers your real balance (100 tokens)
+
+         But... the Vault then credits your account as if you deposited type(uint256).max (which is ~all
+          the tokens that could ever exist) instead of the actual 100 transferred
+    * Unusual Permit Function:
+         A Permit Call:
+         A permit call is when you call a token's permit() function. This function is used to approve (or allow) another address (a spender) to spend a certain amount of your tokens without you having to send a separate on‑chain transaction.
+         Instead, you provide an off‑chain signature that the token contract verifies.
+         Myth 2: “A failed permit call will always revert the transaction.”
+         This statement is a myth because not all token implementations follow this behavior. For example:
+         Standard Behavior: In many modern tokens that follow EIP‑2612, a failed permit call will indeed revert the transaction.
+         Non‑Standard Implementations (like DAI): Some tokens (e.g., DAI) have a permit() implementation that might not revert if the signature verification fails.
+         Instead, the function might fail silently (i.e., it doesn’t update the allowance, but it also doesn’t stop the transaction).
+
+   */
+                       
     function buyTheNftWithErc(uint256 itemId, address token, uint256 amount) public nonReentrant {
         //checks
         console.log("from buyTheNftWithErc");
