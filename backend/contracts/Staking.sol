@@ -7,12 +7,6 @@ import  {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-
-
-
-
-
-
 /**
  * @title StakingContract
  * @notice This contract allows users (or external contracts) to stake an ERC‑20 token.
@@ -48,7 +42,6 @@ contract Staking is ReentrancyGuard {
     /////////////////////
 
     mapping (address => UserInfo) userInformation;
-       
 constructor(address _rewardToken) {
        REWARD_TOKEN = IERC20(_rewardToken);
 }
@@ -58,8 +51,9 @@ constructor(address _rewardToken) {
     NOTE:here not only for the marketplace it is also for the user,
                                                who are independent to stake from the marketplace
     */
-    function stake(address _token,uint amount) public nonReentrant {
+    function stake(address _token,address user,uint amount) public nonReentrant {
         //checks
+        console.log("msg.sender",msg.sender);
         if  (amount == 0) {
             revert Staking__AmountIsZero();
         }
@@ -72,10 +66,9 @@ constructor(address _rewardToken) {
          uint Amount = userInformation[msg.sender].amount;
             userInformation[msg.sender].token = _token;
             userInformation[msg.sender].lastUpdateTime = block.timestamp;
-            uint pendingRewards = calculateRewards(Amount,msg.sender); 
+            uint pendingRewards = _calculateRewards(Amount,user);
             userInformation[msg.sender].rewardAmount += pendingRewards;      
             userInformation[msg.sender].lastUpdateTime = block.timestamp;
-
 
         //interactions
         /* 
@@ -88,20 +81,34 @@ constructor(address _rewardToken) {
 
 
     }
-    function calculateRewards(uint amount,address user) public view returns(uint) {
-        if (amount == 0) {
-            revert Staking__AmountIsZero();
-        }
-        uint timeLapsed = block.timestamp - userInformation[msg.sender].lastUpdateTime;
-            return  amount * rewardRate * timeLapsed; 
-       
-    }
- 
-    function distributeRewards() public {}
+   // Internal function to handle reward calculation logic
 
-    function claimReward() public nonReentrant {
+   /* 
+   need to understand this logic correctly */
+function _calculateRewards(uint amount, address user) internal view returns (uint) {
+    if (amount == 0) {
+        revert Staking__AmountIsZero();
+    }
+    uint timeLapsed = block.timestamp - userInformation[user].lastUpdateTime;
+    return amount * rewardRate * timeLapsed;
+}
+
+// External function for msg.sender (uses function overloading)
+function calculateRewards(uint amount) external view returns (uint) {
+    return _calculateRewards(amount, msg.sender);
+}
+
+// External function for any specified user
+function calculateRewards(uint amount, address user) external view returns (uint) {
+    return _calculateRewards(amount, user);
+}
+
+    function distributeRewards() nonReentrant public {}
+
+/** NEED TO TRANSFER WHAT SHOULD I DO 
+ */    function claimReward() public nonReentrant {
         UserInfo storage userinfo = userInformation[msg.sender];
-        
+
         
     }
     function withdraw() public nonReentrant {}

@@ -5,7 +5,7 @@ pragma solidity ^0.8.9;
 import "hardhat/console.sol";
 
 
-interface INFTEvents {
+interface INFTAndMarketPlaceMEvents {
 
     
     event NFT_Mint(

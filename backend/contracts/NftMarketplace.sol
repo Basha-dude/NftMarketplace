@@ -33,7 +33,7 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 
 //need to   2) need  daily should complete one feature
 
-//completed  0)royality and tested  the commission and tested
+//completed  0)staking
 //Now   1) written and tested for buyWithErc and need to test with small values
 
 contract NftMarketplace is INFTEvents, ReentrancyGuard, ERC721Holder {
