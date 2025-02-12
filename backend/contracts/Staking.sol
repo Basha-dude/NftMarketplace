@@ -105,11 +105,10 @@ function calculateRewards(uint amount, address user) external view returns (uint
 
     function distributeRewards() nonReentrant public {}
 
-/** NEED TO TRANSFER WHAT SHOULD I DO 
+/** NEED TO add what to  TRANSFER to user in staking contract WHAT SHOULD I DO 
  */    function claimReward() public nonReentrant {
         UserInfo storage userinfo = userInformation[msg.sender];
-
-        
     }
+    
     function withdraw() public nonReentrant {}
 }

@@ -25,7 +25,7 @@ import {NFT} from "./NFT.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {INFTEvents} from "./Interface/INFTEvents.sol";
+import {INFTAndMarketPlaceEvents} from "./Interface/INFTAndMarketPlaceEvents.sol"; 
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // for to transfer nft  to the contract
@@ -36,7 +36,7 @@ import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Hol
 //completed  0)staking
 //Now   1) written and tested for buyWithErc and need to test with small values
 
-contract NftMarketplace is INFTEvents, ReentrancyGuard, ERC721Holder {
+contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Holder {
     ////////////////////
     // STATE VARIABLE//
     //////////////////
