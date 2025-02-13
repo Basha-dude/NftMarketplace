@@ -7,6 +7,8 @@ import  {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {NftMarketplace} from "./NftMarketplace.sol";
+
 /**
  * @title StakingContract
  * @notice This contract allows users (or external contracts) to stake an ERC‑20 token.
@@ -21,18 +23,22 @@ contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20;
     uint rewardRate = 1e14;
     IERC20  immutable  REWARD_TOKEN;
+    address marketplace;
+
 
     ////////////////////
     //    ERRORS      //
     /////////////////////
     error Staking__AmountIsZero();
+    error Staking__rewardAmountIsZero();
+
     
     ////////////////////
     //    STRUCT      //
     /////////////////////
     struct UserInfo{
         address token;
-        uint amount;
+        uint DepositedAmount;
         uint lastUpdateTime;
         uint rewardAmount;
     }
@@ -62,8 +68,8 @@ constructor(address _rewardToken) {
         so second daani ki fresh ga start avthadhi
         */
         //effects
-         userInformation[msg.sender].amount += amount;
-         uint Amount = userInformation[msg.sender].amount;
+         userInformation[msg.sender].DepositedAmount += amount;
+         uint Amount = userInformation[msg.sender].DepositedAmount;
             userInformation[msg.sender].token = _token;
             userInformation[msg.sender].lastUpdateTime = block.timestamp;
             uint pendingRewards = _calculateRewards(Amount,user);
@@ -78,7 +84,6 @@ constructor(address _rewardToken) {
         */
         IERC20(_token).safeTransferFrom(msg.sender,address(this),amount); 
         //need to emit an event
-
 
     }
    // Internal function to handle reward calculation logic
@@ -103,12 +108,23 @@ function calculateRewards(uint amount, address user) external view returns (uint
     return _calculateRewards(amount, user);
 }
 
-    function distributeRewards() nonReentrant public {}
+// if i try to distribute there will so many stakers it will give me Dos(Denail of service attack)
+    // function distributeRewards() nonReentrant public {}
 
-/** NEED TO add what to  TRANSFER to user in staking contract WHAT SHOULD I DO 
+/** NEED TO CORRECTLY DO THE TRANSFER
  */    function claimReward() public nonReentrant {
-        UserInfo storage userinfo = userInformation[msg.sender];
+    UserInfo storage userinfo = userInformation[msg.sender];
+    uint amount = userinfo.rewardAmount;
+    //checks
+     if (amount == 0) {
+        revert Staking__rewardAmountIsZero();    
+     }
+     //effects
+             userinfo.rewardAmount =0;
+     //interactions
+        REWARD_TOKEN.safeTransferFrom(address(this),msg.sender,amount);
     }
+
+    function emergencyWithdraw() public nonReentrant {}
     
-    function withdraw() public nonReentrant {}
 }
