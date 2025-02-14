@@ -4,7 +4,14 @@ pragma solidity ^0.8.9;
 // Uncomment this line to use console.log
 import "hardhat/console.sol";
 import  {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+/* 
+ *here this is used because IERC20 and ERC20 does not mint function so we use this ```IERC20Mintable```
+*/
+import {IERC20Mintable} from "./Interface/IERC20Mintable.sol";   
+
+// import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {NftMarketplace} from "./NftMarketplace.sol";
@@ -20,9 +27,9 @@ import {NftMarketplace} from "./NftMarketplace.sol";
 
  // need to write correct formula for calculating rewards
 contract Staking is ReentrancyGuard {
-    using SafeERC20 for IERC20;
-    uint rewardRate = 1e14;
-    IERC20  immutable  REWARD_TOKEN;
+    using SafeERC20 for IERC20Mintable; 
+    uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
+     IERC20Mintable  immutable  REWARD_TOKEN;
     address marketplace;
 
 
@@ -49,7 +56,7 @@ contract Staking is ReentrancyGuard {
 
     mapping (address => UserInfo) userInformation;
 constructor(address _rewardToken) {
-       REWARD_TOKEN = IERC20(_rewardToken);
+       REWARD_TOKEN = IERC20Mintable(_rewardToken);
 }
     /* 
     ikkada first kontha amount deposit chesthaadhu appudu rewards entha ani calculate cheyyali
@@ -82,7 +89,7 @@ constructor(address _rewardToken) {
         If the transfer fails or if the token does not behave as expected, it reverts the transaction.
 
         */
-        IERC20(_token).safeTransferFrom(msg.sender,address(this),amount); 
+       IERC20Mintable(_token).safeTransferFrom(msg.sender,address(this),amount); 
         //need to emit an event
 
     }
@@ -122,9 +129,18 @@ function calculateRewards(uint amount, address user) external view returns (uint
      //effects
              userinfo.rewardAmount =0;
      //interactions
-        REWARD_TOKEN.safeTransferFrom(address(this),msg.sender,amount);
+        REWARD_TOKEN.mint(msg.sender,amount);       
     }
+/* 
 
-    function emergencyWithdraw() public nonReentrant {}
+need to add owner for this*/
+    function setRewardRate(uint newRate) external //onlyOwner
+     {
+        rewardRate = newRate;
+    }
+    
+    function emergencyWithdraw() public nonReentrant {
+
+    }
     
 }

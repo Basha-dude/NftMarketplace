@@ -8,14 +8,14 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
-import {INFTEvents} from "./Interface/INFTEvents.sol";   
+import {INFTAndMarketPlaceEvents} from "./Interface/INFTAndMarketPlaceEvents.sol"; 
 //for royalities
 
 
 
 
 
-contract NFT is ERC721URIStorage,Pausable,INFTEvents {
+contract NFT is ERC721URIStorage,Pausable,INFTAndMarketPlaceEvents {
 
     ////////////////////
     // STATE VARIABLES//

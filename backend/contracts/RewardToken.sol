@@ -16,11 +16,11 @@ contract RewardToken is ERC20 {
         _mint(initialAccount, initialBalance);
     }
 
-    function mint(address account, uint256 amount) public {
+    function mint(address account, uint256 amount) public  {
         _mint(account, amount);
     }
 
-    function burn(address account, uint256 amount) public {
+    function burn(address account, uint256 amount) internal {
         _burn(account, amount);
     }
 
@@ -29,7 +29,7 @@ contract RewardToken is ERC20 {
     }
 
     function decimals() public view virtual override returns (uint8) {
-        return 8;
+        return 18;
     }
 
     function approveInternal(address owner, address spender, uint256 value) public {
