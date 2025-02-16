@@ -23,14 +23,27 @@ import {NftMarketplace} from "./NftMarketplace.sol";
  *
  *         In your case, tokens received from your NFT marketplace (or from users)
  *         can be staked here to accumulate additional rewards.
+ * 
+ * @dev this  is  ```Annual percentage yield (APY)``` contract
  */
 
- // need to write correct formula for calculating rewards
+ 
+
+ //need to write test for the contract
 contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
     uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
      IERC20Mintable  immutable  REWARD_TOKEN;
     address marketplace;
+
+
+
+    
+    ////////////////////
+    //    EVENTS      //
+    /////////////////////
+   event Staked();
+
 
 
     ////////////////////
@@ -64,6 +77,11 @@ constructor(address _rewardToken) {
     NOTE:here not only for the marketplace it is also for the user,
                                                who are independent to stake from the marketplace
     */
+
+
+    /* 
+      ikkada  STAKE lo logic wrong  ga undi need to correct it, msg.sender antey markeplace avthadhi not user
+    */
     function stake(address _token,address user,uint amount) public nonReentrant {
         //checks
         console.log("msg.sender",msg.sender);
@@ -89,6 +107,7 @@ constructor(address _rewardToken) {
         If the transfer fails or if the token does not behave as expected, it reverts the transaction.
 
         */
+        emit Staked();
        IERC20Mintable(_token).safeTransferFrom(msg.sender,address(this),amount); 
         //need to emit an event
 
@@ -97,6 +116,30 @@ constructor(address _rewardToken) {
 
    /* 
    need to understand this logic correctly */
+
+   /**                   APR
+    * Reward Rate= ------------------ × Scaling Factor (1e18)
+                    Seconds in a Year
+
+    *E.X:- 
+        Desired APR: 10% = 0.1 (in decimal).
+        Seconds in a Year:
+
+     365 days× 24 hours× 3600 seconds=31,536,000 seconds
+
+     Per-Second Rate:
+                            0.1                (-9)
+                      ---------------   ≈3.17×10       =  (0.00000000317 per second)
+                      31,536,000 
+           (−9)
+    3.17× 10×  1e18=  317,000,000(or 3.17e9)
+
+
+   */
+
+   /** 
+    NOTE: calculation is wrong need to write the correct after testing it 
+   */
 function _calculateRewards(uint amount, address user) internal view returns (uint) {
     if (amount == 0) {
         revert Staking__AmountIsZero();
@@ -118,7 +161,7 @@ function calculateRewards(uint amount, address user) external view returns (uint
 // if i try to distribute there will so many stakers it will give me Dos(Denail of service attack)
     // function distributeRewards() nonReentrant public {}
 
-/** NEED TO CORRECTLY DO THE TRANSFER
+/**
  */    function claimReward() public nonReentrant {
     UserInfo storage userinfo = userInformation[msg.sender];
     uint amount = userinfo.rewardAmount;
@@ -140,7 +183,7 @@ need to add owner for this*/
     }
     
     function emergencyWithdraw() public nonReentrant {
-
+        claimReward();
     }
     
 }
