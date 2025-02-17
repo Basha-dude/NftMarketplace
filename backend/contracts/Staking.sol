@@ -29,8 +29,9 @@ import {NftMarketplace} from "./NftMarketplace.sol";
 
  
 
- //need to write test for the contract
-contract Staking is ReentrancyGuard {
+ //need to write test for the contract 
+/*    1) need to write events and   corrected the `STAKE` function
+ */contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
     uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
      IERC20Mintable  immutable  REWARD_TOKEN;
@@ -79,31 +80,45 @@ constructor(address _rewardToken) {
     */
 
 
-    /* 
-      ikkada  STAKE lo logic wrong  ga undi need to correct it, msg.sender antey markeplace avthadhi not user
-    */
-    function stake(address _token,address user,uint amount) public nonReentrant {
+   function stake(address _token,uint amount) public nonReentrant {
+        _stake(_token,msg.sender,amount); 
+   } 
+   /** 
+    * @dev mainly used for marketplace and for staking behalf of other user 
+   */
+    function _stake(address _token,address user,uint amount) public nonReentrant {
         //checks
-        console.log("msg.sender",msg.sender);
+
         if  (amount == 0) {
             revert Staking__AmountIsZero();
-        }
+        } 
         /* 
         first chesina stake ki rewards add chesaam and last updated time ni set chesaam,
         so second daani ki fresh ga start avthadhi
         */
+       UserInfo storage userInfo = userInformation[user]; // Use USER parameter
+    
+       // 1. Calculate rewards for EXISTING deposit FIRST
+       if (userInfo.DepositedAmount > 0) {
+           uint pending = _calculateRewards(userInfo.DepositedAmount, user);
+           userInfo.rewardAmount += pending;
+       }
+
         //effects
          userInformation[msg.sender].DepositedAmount += amount;
-         uint Amount = userInformation[msg.sender].DepositedAmount;
-            userInformation[msg.sender].token = _token;
-            userInformation[msg.sender].lastUpdateTime = block.timestamp;
-            uint pendingRewards = _calculateRewards(Amount,user);
-            userInformation[msg.sender].rewardAmount += pendingRewards;      
-            userInformation[msg.sender].lastUpdateTime = block.timestamp;
+        userInformation[msg.sender].token = _token;
+                   /*  
+      BUG:- userInformation[msg.sender].lastUpdateTime = block.timestamp;
+            uint pendingRewards = _calculateRewards(Amount,user); 
+    NOTE:- This would calculate rewards for 0 seconds because you just updated the timestamp!  AND
+           This causes new deposits to immediately earn rewards for the entire elapsed time since the last stake, 
+                               even though they weren't deposited during that period. 
+     */  
+           userInformation[msg.sender].lastUpdateTime = block.timestamp;
 
-        //interactions
+             //interactions
         /* 
-        speciatlity of safeTransferFrom:
+       NOTE: speciatlity of safeTransferFrom:
         If the transfer fails or if the token does not behave as expected, it reverts the transaction.
 
         */
@@ -141,11 +156,12 @@ constructor(address _rewardToken) {
     NOTE: calculation is wrong need to write the correct after testing it 
    */
 function _calculateRewards(uint amount, address user) internal view returns (uint) {
+    if (userInformation[user].DepositedAmount == 0) return 0;
     if (amount == 0) {
         revert Staking__AmountIsZero();
     }
     uint timeLapsed = block.timestamp - userInformation[user].lastUpdateTime;
-    return amount * rewardRate * timeLapsed;
+    return amount * rewardRate * timeLapsed; 
 }
 
 // External function for msg.sender (uses function overloading)
@@ -158,7 +174,7 @@ function calculateRewards(uint amount, address user) external view returns (uint
     return _calculateRewards(amount, user);
 }
 
-// if i try to distribute there will so many stakers it will give me Dos(Denail of service attack)
+//  NOTE:-  if i try to distribute there will so many stakers it will give me Dos(Denail of service attack)
     // function distributeRewards() nonReentrant public {}
 
 /**
