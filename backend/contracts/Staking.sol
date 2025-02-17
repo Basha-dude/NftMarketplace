@@ -30,12 +30,13 @@ import {NftMarketplace} from "./NftMarketplace.sol";
  
 
  //need to write test for the contract 
-/*    1) need to write events and   corrected the `STAKE` function
+     //corrected the `STAKE` function 
+/*    1) need to write events and   
  */contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
     uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
      IERC20Mintable  immutable  REWARD_TOKEN;
-    address marketplace;
+    address marketPlace;
 
 
 
@@ -69,8 +70,9 @@ import {NftMarketplace} from "./NftMarketplace.sol";
     /////////////////////
 
     mapping (address => UserInfo) userInformation;
-constructor(address _rewardToken) {
+constructor(address _rewardToken, address _marketplace) {
        REWARD_TOKEN = IERC20Mintable(_rewardToken);
+       marketPlace = _marketplace;
 }
     /* 
     ikkada first kontha amount deposit chesthaadhu appudu rewards entha ani calculate cheyyali
@@ -88,7 +90,6 @@ constructor(address _rewardToken) {
    */
     function _stake(address _token,address user,uint amount) public nonReentrant {
         //checks
-
         if  (amount == 0) {
             revert Staking__AmountIsZero();
         } 
@@ -100,13 +101,13 @@ constructor(address _rewardToken) {
     
        // 1. Calculate rewards for EXISTING deposit FIRST
        if (userInfo.DepositedAmount > 0) {
-           uint pending = _calculateRewards(userInfo.DepositedAmount, user);
+           uint pending = calculateRewards(userInfo.DepositedAmount, user);
            userInfo.rewardAmount += pending;
        }
 
         //effects
-         userInformation[msg.sender].DepositedAmount += amount;
-        userInformation[msg.sender].token = _token;
+         userInformation[user].DepositedAmount += amount;
+        userInformation[user].token = _token;
                    /*  
       BUG:- userInformation[msg.sender].lastUpdateTime = block.timestamp;
             uint pendingRewards = _calculateRewards(Amount,user); 
@@ -114,7 +115,7 @@ constructor(address _rewardToken) {
            This causes new deposits to immediately earn rewards for the entire elapsed time since the last stake, 
                                even though they weren't deposited during that period. 
      */  
-           userInformation[msg.sender].lastUpdateTime = block.timestamp;
+           userInformation[user].lastUpdateTime = block.timestamp;
 
              //interactions
         /* 
@@ -123,7 +124,7 @@ constructor(address _rewardToken) {
 
         */
         emit Staked();
-       IERC20Mintable(_token).safeTransferFrom(msg.sender,address(this),amount); 
+       IERC20Mintable(_token).safeTransferFrom(user,address(this),amount); 
         //need to emit an event
 
     }
@@ -155,7 +156,7 @@ constructor(address _rewardToken) {
    /** 
     NOTE: calculation is wrong need to write the correct after testing it 
    */
-function _calculateRewards(uint amount, address user) internal view returns (uint) {
+function calculateRewards(uint amount, address user) public  view returns (uint) {
     if (userInformation[user].DepositedAmount == 0) return 0;
     if (amount == 0) {
         revert Staking__AmountIsZero();
@@ -165,14 +166,12 @@ function _calculateRewards(uint amount, address user) internal view returns (uin
 }
 
 // External function for msg.sender (uses function overloading)
-function calculateRewards(uint amount) external view returns (uint) {
-    return _calculateRewards(amount, msg.sender);
+function calculateRewards(uint amount) public  view returns (uint) {
+    return calculateRewards(amount, msg.sender);     
 }
 
 // External function for any specified user
-function calculateRewards(uint amount, address user) external view returns (uint) {
-    return _calculateRewards(amount, user);
-}
+
 
 //  NOTE:-  if i try to distribute there will so many stakers it will give me Dos(Denail of service attack)
     // function distributeRewards() nonReentrant public {}
