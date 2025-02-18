@@ -11,7 +11,7 @@ import  {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard
 import {IERC20Mintable} from "./Interface/IERC20Mintable.sol";   
 
 // import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+ 
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {NftMarketplace} from "./NftMarketplace.sol";
@@ -27,11 +27,10 @@ import {NftMarketplace} from "./NftMarketplace.sol";
  * @dev this  is  ```Annual percentage yield (APY)``` contract
  */
 
- 
 
  //need to write test for the contract 
      //corrected the `STAKE` function 
-/*    1) need to write events and   
+/*    1)  and   
  */contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
     uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
@@ -44,7 +43,7 @@ import {NftMarketplace} from "./NftMarketplace.sol";
     ////////////////////
     //    EVENTS      //
     /////////////////////
-   event Staked();
+    event Staked(address indexed user, uint amount, uint timestamp);
 
 
 
@@ -104,7 +103,6 @@ constructor(address _rewardToken, address _marketplace) {
            uint pending = calculateRewards(userInfo.DepositedAmount, user);
            userInfo.rewardAmount += pending;
        }
-
         //effects
          userInformation[user].DepositedAmount += amount;
         userInformation[user].token = _token;
@@ -123,7 +121,7 @@ constructor(address _rewardToken, address _marketplace) {
         If the transfer fails or if the token does not behave as expected, it reverts the transaction.
 
         */
-        emit Staked();
+        emit Staked(user,amount,userInformation[user].lastUpdateTime);
        IERC20Mintable(_token).safeTransferFrom(user,address(this),amount); 
         //need to emit an event
 
