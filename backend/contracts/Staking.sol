@@ -37,9 +37,6 @@ import {NftMarketplace} from "./NftMarketplace.sol";
      IERC20Mintable  immutable  REWARD_TOKEN;
     address marketPlace;
 
-
-
-    
     ////////////////////
     //    EVENTS      //
     /////////////////////
@@ -76,7 +73,7 @@ constructor(address _rewardToken, address _marketplace) {
     /* 
     ikkada first kontha amount deposit chesthaadhu appudu rewards entha ani calculate cheyyali
     second malli amount deposit chesthaadu, appudu malli add chesthaam
-    NOTE:here not only for the marketplace it is also for the user,
+    NOTE:here  `stake()` not only for the marketplace it is also for the user,
                                                who are independent to stake from the marketplace
     */
 
@@ -175,11 +172,12 @@ function calculateRewards(uint amount) public  view returns (uint) {
     // function distributeRewards() nonReentrant public {}
 
 /**
- */    function claimReward() public nonReentrant {
+ */   
+ function claimReward() public nonReentrant {
     UserInfo storage userinfo = userInformation[msg.sender];
     uint amount = userinfo.rewardAmount;
     //checks
-     if (amount == 0) {
+     if (amount == 0) {  
         revert Staking__rewardAmountIsZero();    
      }
      //effects
@@ -187,8 +185,8 @@ function calculateRewards(uint amount) public  view returns (uint) {
      //interactions
         REWARD_TOKEN.mint(msg.sender,amount);       
     }
+    
 /* 
-
 need to add owner for this*/
     function setRewardRate(uint newRate) external //onlyOwner
      {

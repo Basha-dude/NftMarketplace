@@ -30,6 +30,7 @@ import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 // for to transfer nft  to the contract
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import {Staking} from  "./Staking.sol";
 
 //need to   2) need  daily should complete one feature
 
@@ -54,6 +55,7 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
     uint256 EIGHT_DECIMAL = 1e8;
     AggregatorV3Interface ethUsdpriceFeed;
     uint256 ADDITIONAL_PRECISION = 1e10;
+    Staking stakingContract;
 
     //////////////////
     // ERRORS       //
@@ -76,11 +78,13 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
     error NftMarketplace__InvalidNftContract();
     error NftMarketplace__InvalidPriceFeed();
     error NftMarketplace__EmptyTokenAddresses();
+    error NftMarketplace__EmptyStakingContractAddress();
     error NftMarketplace__UnsupportedToken();
     error NftMarketplace__TokenNotSupported(address token);
     error NftMarketplace__ZeroPriceFeed();
     error NftMarketplace__ZeroRoyality();
     error NftMarketplace__ZeroTokensForCalulatingRoyality();
+
 
     /////////////////
     // MAPPING     //
@@ -112,11 +116,13 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
         address _NftContract,
         address _priceFeed,
         address[] memory tokenAddresses,
-        address[] memory priceFeedAddresses
+        address[] memory priceFeedAddresses,
+        address _stakingContract
     ) {
         if (_NftContract == address(0)) revert NftMarketplace__InvalidNftContract();
         if (_priceFeed == address(0)) revert NftMarketplace__InvalidPriceFeed();
         if (tokenAddresses.length == 0) revert NftMarketplace__EmptyTokenAddresses();
+        if (_stakingContract == address(0)) revert NftMarketplace__EmptyStakingContractAddress();
         nftContract = _NftContract;
         ethUsdpriceFeed = AggregatorV3Interface(_priceFeed);
         if (tokenAddresses.length != priceFeedAddresses.length) {
@@ -125,6 +131,7 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             TokensPriceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
         }
+        stakingContract =Staking(_stakingContract);  
     }
 
     ///////////////////
@@ -505,6 +512,7 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
         uint256 royalityToPay;
         uint256 commissionForBuyinWithErc;
         uint256 allWithPrecisions;
+        uint amountToPay;
 
         //need to write interactions
 
@@ -536,9 +544,10 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
             console.log("total for 18", tokenToPay + royalityToPay + commissionForBuyinWithErc);
             allWithPrecisions = (tokenToPay * PRECISION) + (royalityToPay * PRECISION) + commissionBasisPoints;
             console.log("allWithPrecisions", allWithPrecisions);
+            amountToPay = tokenToPay + royalityToPay + commissionForBuyinWithErc;
             require(amount >= allWithPrecisions, "Insufficient payment amount from 18");
             bool success = IERC20Metadata(token).transferFrom(
-                msg.sender, address(this), tokenToPay + royalityToPay + commissionForBuyinWithErc
+                msg.sender, address(this),amountToPay
             );
             require(success, "Transfer failed For 18 decimals");
         } else {
@@ -568,11 +577,13 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
 
             console.log("allWithPrecisions from 8 contract", allWithPrecisions);
             require(amount >= allWithPrecisions, "Insufficient payment amount from 8");
+            amountToPay = tokenToPay + royalityToPay + commissionForBuyinWithErc;
             bool success = IERC20Metadata(token).transferFrom(
-                msg.sender, address(this), tokenToPay + royalityToPay + commissionForBuyinWithErc
+                msg.sender, address(this), amountToPay
             );
             require(success, "Transfer failed For 8 decimals");
         }
+        stakingContract._stake(token,msg.sender,amountToPay);
         INFT(nftContract).safeTransferFrom(address(this), msg.sender, marketItem.NftId);
         emit MarketPlace_buyTheNftWithErc(
             itemId, marketItem.NftId, marketItem.Creator, originalSeller, royalityToPay, tokenToPay, tokenDecimals
@@ -620,7 +631,6 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
     function calculateTheCommisionForErc(address token) public view returns (uint256) {
         console.log(" from calculateTheCommisionForErc");
         console.log(" ");
-
         address pricefeed = TokensPriceFeeds[token];
         if (pricefeed == address(0)) {
             revert NftMarketplace__TokenNotSupported(token);
