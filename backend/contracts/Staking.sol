@@ -29,8 +29,8 @@ import {NftMarketplace} from "./NftMarketplace.sol";
 
 
  //need to write test for the contract 
-     //corrected the `STAKE` function 
-/*    1)  and   
+     
+/*  
  */contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
     uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
