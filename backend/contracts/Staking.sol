@@ -31,11 +31,25 @@ import {NftMarketplace} from "./NftMarketplace.sol";
  //need to write test for the contract 
      
 /*  
- */contract Staking is ReentrancyGuard {
+ */
+contract Staking is ReentrancyGuard {
     using SafeERC20 for IERC20Mintable; 
-    uint public rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
+    /* FORMULA:-
+     
+         APR= 10% = 0.1
+    secondsInYear = 31,536,000
+    Reward Rate was pre-scaled by 1e18 
+
+
+                    0.1×1e18
+    Reward Rate =  -------------- =  ≈3.17×10**9 (stored as ‘3170000000‘)
+                     31,536,000
+
+​
+   */
+    uint public s_rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
      IERC20Mintable  immutable  REWARD_TOKEN;
-    address marketPlace;
+    address s_marketPlace;
 
     ////////////////////
     //    EVENTS      //
@@ -49,6 +63,8 @@ import {NftMarketplace} from "./NftMarketplace.sol";
     /////////////////////
     error Staking__AmountIsZero();
     error Staking__rewardAmountIsZero();
+    error Staking__InvalidMarketplaceAddress();
+
 
     
     ////////////////////
@@ -68,11 +84,12 @@ import {NftMarketplace} from "./NftMarketplace.sol";
     mapping (address => UserInfo) userInformation;
 constructor(address _rewardToken, address _marketplace) {
        REWARD_TOKEN = IERC20Mintable(_rewardToken);
-       marketPlace = _marketplace;
+       s_marketPlace = _marketplace;   
 }
     /* 
-    ikkada first kontha amount deposit chesthaadhu appudu rewards entha ani calculate cheyyali
-    second malli amount deposit chesthaadu, appudu malli add chesthaam
+    ikkada first kontha amount deposit chesthaadhu appudu rewards entha ani calculate cheyyali 
+    and we appudey `lastUpdateTime` add chesaam 
+    second malli amount deposit chesinappudu malli first nunchi unnnatu untadhi,
     NOTE:here  `stake()` not only for the marketplace it is also for the user,
                                                who are independent to stake from the marketplace
     */
@@ -164,7 +181,7 @@ constructor(address _rewardToken, address _marketplace) {
         revert Staking__AmountIsZero();
     }
     uint timeLapsed = block.timestamp - userInformation[user].lastUpdateTime;
-    return amount * rewardRate * timeLapsed; 
+    return (amount * s_rewardRate * timeLapsed); 
 }
 
 // External function for msg.sender (uses function overloading)
@@ -197,11 +214,18 @@ function calculateRewards(uint amount) public  view returns (uint) {
 need to add owner for this*/
     function setRewardRate(uint newRate) external //onlyOwner
      {
-        rewardRate = newRate;
+        s_rewardRate = newRate;
     }
     
     function emergencyWithdraw() public nonReentrant {
         claimReward();
     }
-    
+ 
+    function setMarketplace(address _marketplace) external {
+        if (_marketplace == address(0)) {
+            revert Staking__InvalidMarketplaceAddress();
+        }
+        s_marketPlace = _marketplace;
+    }
+
 }

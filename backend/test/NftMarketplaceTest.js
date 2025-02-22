@@ -7,18 +7,18 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat")
 
 
+/* giving an error of the ERC20: insufficient allowance  */
 describe("DEPLOYMENT", async () => {
-
   /////////////
   //  LET    //
   ////////////
-  let deployer,user,nft,nftMarketplace,mockV3Aggregator,user1,dai,wBtc
-
+  let deployer, user, nft, nftMarketplace,
+   mockV3Aggregator, user1, dai, wBtc, staking, rewardToken;
 
   /////////////
-  //  CONST    //
+  //  CONST  //
   ////////////
-  const address1 ='0x0000000000000000000000000000000000000001'
+  const address1 = '0x0000000000000000000000000000000000000001'
   const name = "Undefeated"
   const symbol = "UDF"
   const tokenURI = "tokenUri"
@@ -29,29 +29,77 @@ describe("DEPLOYMENT", async () => {
   const DECIMALSFOREIGHTEEN = 18
   const ETH_USD_PRICE = 200000000000;
   const largeNumberStr = "2000000000000000000000";
-  const ETH_DAI_PRICE = BigInt(largeNumberStr); 
-  // const eTH_DAI_PRICE =  2000000000000000000000
-
+  const ETH_DAI_PRICE = BigInt(largeNumberStr);
+  const REWARDTOKEN = 1000000
   const priceForUsd = 5500
 
-  before( async ()=> {
+  before(async () => {
+    // Get signers first
+    [deployer, user, user1] = await ethers.getSigners()
+
+      ////////////////////////////
+    // Deploy NFT              //
+    ///////////////////////////
     const NFT = await ethers.getContractFactory("NFT")
-         nft = await NFT.deploy();
-        [deployer,user,user1]  = await ethers.getSigners()
-        const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
-        mockV3Aggregator = await MockV3Aggregator.connect(deployer).deploy(DECIMALS,ETH_USD_PRICE);
-  
-        const NftMarketplace = await ethers.getContractFactory("NftMarketplace")
-        const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
-        const ERC20MockEight = await ethers.getContractFactory("ERC20MockEight");
+    nft = await NFT.deploy();
+    await nft.waitForDeployment();
 
-        dai = await ERC20Mock.connect(user1).deploy("DAI_COIN","DAI",user1.address,1000);
-        wBtc = await ERC20MockEight.connect(user1).deploy("WBTC_COIN","WBTC",user1.address,1000);
+      ////////////////////////////
+    // Deploy MockV3Aggregator //
+    ///////////////////////////
+    const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
+    mockV3Aggregator = await MockV3Aggregator.connect(deployer).deploy(DECIMALS, ETH_USD_PRICE);
+    await mockV3Aggregator.waitForDeployment();
 
-        nftMarketplace = await NftMarketplace.deploy(nft.target,mockV3Aggregator.target,[dai.target,wBtc.target],[mockV3Aggregator.target,mockV3Aggregator.target])
-        
+      ////////////////////////////
+    // Deploy RewardToken      //
+    ///////////////////////////
+    const RewardToken = await ethers.getContractFactory("RewardToken");
+    rewardToken = await RewardToken.deploy("RewardToken", "RT", deployer.address, 0);
+    await rewardToken.waitForDeployment();
 
-})
+      ////////////////////////////
+    // Deploy Staking         //
+    ///////////////////////////
+    const Staking = await ethers.getContractFactory("Staking");
+    staking = await Staking.deploy(
+      await rewardToken.getAddress(),
+      ethers.ZeroAddress
+    );
+    await staking.waitForDeployment();
+
+    
+      ////////////////////////////
+    // Deploy Mock Tokens     //
+    ///////////////////////////
+    const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
+    const ERC20MockEight = await ethers.getContractFactory("ERC20MockEight");
+
+    dai = await ERC20Mock.connect(user1).deploy("DAI_COIN", "DAI", user1.address, 1000);
+    await dai.waitForDeployment();
+
+    wBtc = await ERC20MockEight.connect(user1).deploy("WBTC_COIN", "WBTC", user1.address, 1000);
+    await wBtc.waitForDeployment();
+
+    ////////////////////////////
+    // Deploy NftMarketplace //
+    ///////////////////////////
+    const NftMarketplace = await ethers.getContractFactory("NftMarketplace");
+    nftMarketplace = await NftMarketplace.deploy(
+      await nft.getAddress(),
+      await mockV3Aggregator.getAddress(),
+      [await dai.getAddress(), await wBtc.getAddress()],
+      [await mockV3Aggregator.getAddress(), await mockV3Aggregator.getAddress()],
+      await staking.getAddress()
+    );
+    await nftMarketplace.waitForDeployment();
+
+    // Update Staking with the actual NftMarketplace address
+    await staking.setMarketplace(await nftMarketplace.getAddress());
+  });
+
+  // Add at least one test case
+
 
    describe('NFT', () => {   
  
@@ -372,10 +420,7 @@ describe("DEPLOYMENT", async () => {
    it(" test for reListInTheMarket for Second Nft  to Revert for not the seller",async () => {
     await  expect( nftMarketplace.connect(deployer).reListInTheMarket(2,0,true)).to.be.revertedWithCustomError(nftMarketplace,"NftMarketplace__NotTheSellerOrOwner")
  })
-       
-
-
-
+      
       })
       describe('Buy The Nft With ERC20', () => { 
 
