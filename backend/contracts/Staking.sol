@@ -151,7 +151,14 @@ constructor(address _rewardToken, address _marketplace) {
    /** 
     NOTE: calculation is wrong need to write the correct after testing it 
    */
-function calculateRewards(uint amount, address user) public  view returns (uint) {
+
+   /// @notice Calculates the reward for the amount
+   /// @dev No need to worry about the decimals because the reward token has 18 decimals
+   /// @param amount amount to calculate the the rewards
+   /// @param user to calculate the amount for the user address
+   /// @return rewards for the given amount
+   
+   function calculateRewards(uint amount, address user) public  view returns (uint) {
     if (userInformation[user].DepositedAmount == 0) return 0;
     if (amount == 0) {
         revert Staking__AmountIsZero();
