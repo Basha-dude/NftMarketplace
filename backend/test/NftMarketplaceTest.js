@@ -460,7 +460,7 @@ describe("DEPLOYMENT", async () => {
 
           const TxCreate = await nftMarketplace.connect(deployer).createMarketItem(3,price1,royality1,false,{value: ethers.parseUnits("0.04")})
           const TxCreateReceipt = await TxCreate.wait()
-          
+                    
           const Tx = await nftMarketplace.connect(user).buyTheNftWithErc(3,dai.target,ethers.parseUnits("4160", 18))
           const TxReceipt = await Tx.wait()
 
@@ -478,10 +478,11 @@ describe("DEPLOYMENT", async () => {
             // Replace with something like:
             await wBtc.connect(user).approve(nftMarketplace.target,ethers.MaxUint256);
             await nft.connect(deployer).approve(nftMarketplace.target,4)
+
   
             const TxCreate = await nftMarketplace.connect(deployer).createMarketItem(4,4000,royality1,true,{value: ethers.parseUnits("0.04")})
             const TxCreateReceipt = await TxCreate.wait()
-
+             
             const Tx = await nftMarketplace.connect(user).buyTheNftWithErc(4,wBtc.target,ethers.parseUnits("4080.00002", 8))
             const TxReceipt = await Tx.wait()
           })

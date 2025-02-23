@@ -583,6 +583,7 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
             );
             require(success, "Transfer failed For 8 decimals");
         }
+        IERC20Metadata(token).approve(address(stakingContract), amountToPay);
         stakingContract._stake(token,msg.sender,amountToPay);
         INFT(nftContract).safeTransferFrom(address(this), msg.sender, marketItem.NftId);
         emit MarketPlace_buyTheNftWithErc(
@@ -619,7 +620,7 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
         return conclusion;
     }
     /*  convert 1e14 ETH into tokens:-
-    uint EthAmount = 1e14 to convert tokens
+    uint EthAmount = 1e14 to convert tokens   
     so EthAmount * (price / 1 ether) = 1e14 * ((price)/ 1 ETH)
     FORMULA:- Total Tokens= ETH Amount * (tokens/ETH)
 
@@ -750,6 +751,12 @@ contract NftMarketplace is INFTAndMarketPlaceEvents, ReentrancyGuard, ERC721Hold
         uint256 amount = (uint256(answer) * ADDITIONAL_PRECISION * Nftprice) / (PRECISION * PRECISION); //2000000000000000000000
         console.log("amount  from the contract", amount); //1_000_000_000_000_000
         return amount;
+    }
+
+    function _approveErc( address token, uint _amount)  internal  {
+            bool success = IERC20Metadata(token).approve(address(stakingContract),_amount); 
+            require(success, "Approval failed");
+
     }
 
     function reListInTheMarket(uint256 _itemId, uint256 _price, bool _isUsd) public payable {

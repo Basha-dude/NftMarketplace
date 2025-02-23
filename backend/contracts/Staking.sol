@@ -136,8 +136,12 @@ constructor(address _rewardToken, address _marketplace) {
 
         */
         emit Staked(user,amount,userInformation[user].lastUpdateTime);
-       IERC20Mintable(_token).safeTransferFrom(user,address(this),amount); 
-        //need to emit an event
+        if (msg.sender == s_marketPlace) {
+            IERC20Mintable(_token).safeTransferFrom(msg.sender, address(this), amount);
+        } else {
+            // Normal staking from user
+            IERC20Mintable(_token).safeTransferFrom(user, address(this), amount);
+        }        //need to emit an event
 
     }
    // Internal function to handle reward calculation logic
