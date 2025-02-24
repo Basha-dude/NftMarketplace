@@ -47,7 +47,7 @@ contract Staking is ReentrancyGuard {
 
 ​
    */
-    uint public s_rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
+    uint private s_rewardRate = 3170000000; // 3.17e9 ≈ 10% APR
      IERC20Mintable  immutable  REWARD_TOKEN;
     address s_marketPlace;
 
@@ -230,6 +230,13 @@ need to add owner for this*/
             revert Staking__InvalidMarketplaceAddress();
         }
         s_marketPlace = _marketplace;
+    }
+
+    //////////////////
+    //   GETTERS    //
+    //////////////////
+    function gets_rewardRate() external view returns(uint) {
+        return s_rewardRate; 
     }
 
 }
