@@ -32,6 +32,7 @@ describe("DEPLOYMENT", async () => {
   const ETH_DAI_PRICE = BigInt(largeNumberStr);
   const REWARDTOKEN = 1000000
   const priceForUsd = 5500
+  const STAKING_REWARD_RATE = 3170000000
 
   before(async () => {
     // Get signers first
@@ -485,6 +486,15 @@ describe("DEPLOYMENT", async () => {
              
             const Tx = await nftMarketplace.connect(user).buyTheNftWithErc(4,wBtc.target,ethers.parseUnits("4080.00002", 8))
             const TxReceipt = await Tx.wait()
+          })
+          describe("STAKING", ()=>{
+            it("STAKING:- testing reward rate ",async() =>{
+              const stakingReward = await staking.getRewardRate()
+              expect(stakingReward).to.be.eq(STAKING_REWARD_RATE)
+            })
+           
+              
+
           })
        })
  

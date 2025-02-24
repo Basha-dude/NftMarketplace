@@ -235,7 +235,7 @@ need to add owner for this*/
     //////////////////
     //   GETTERS    //
     //////////////////
-    function gets_rewardRate() external view returns(uint) {
+    function getRewardRate() external view returns(uint) {
         return s_rewardRate; 
     }
 
