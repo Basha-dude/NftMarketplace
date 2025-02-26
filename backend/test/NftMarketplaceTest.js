@@ -493,6 +493,12 @@ describe("DEPLOYMENT", async () => {
               expect(stakingReward).to.be.eq(STAKING_REWARD_RATE)
             })
            
+            it("STAKING:- testing setMarketplace revert function  ",async() =>{
+              await expect(
+                staking.setMarketplace(ethers.ZeroAddress)
+                      ).to.be.revertedWithCustomError(staking, "Staking__InvalidMarketplaceAddress");
+              
+            })
               
 
           })
