@@ -235,8 +235,16 @@ need to add owner for this*/
     //////////////////
     //   GETTERS    //
     //////////////////
+
+    /// @dev returns an reward rate this staking contract
+
     function getRewardRate() external view returns(uint) {
         return s_rewardRate; 
+    }
+
+    /// @dev returns an address of the nftmarketplace
+    function getMarketPlaceAddress() external view returns(address) {
+        return s_marketPlace;   
     }
 
 }

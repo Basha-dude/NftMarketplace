@@ -496,10 +496,13 @@ describe("DEPLOYMENT", async () => {
             it("STAKING:- testing setMarketplace revert function  ",async() =>{
               await expect(
                 staking.setMarketplace(ethers.ZeroAddress)
-                      ).to.be.revertedWithCustomError(staking, "Staking__InvalidMarketplaceAddress");
-              
+                  ).to.be.revertedWithCustomError(staking, "Staking__InvalidMarketplaceAddress");
             })
-              
+          
+            it("STAKING:- testing get Marketplace    ",async() =>{
+                 const marketplaceAddress = await staking.getMarketPlaceAddress()
+                 expect(nftMarketplace).to.be.eq(marketplaceAddress)
+            })
 
           })
        })
