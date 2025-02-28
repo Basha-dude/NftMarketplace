@@ -504,6 +504,12 @@ describe("DEPLOYMENT", async () => {
                  expect(nftMarketplace).to.be.eq(marketplaceAddress)
             })
 
+            it("STAKING:- testing stake function ",async() =>{
+             
+         })
+
+
+
           })
        })
  
