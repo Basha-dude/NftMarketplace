@@ -505,6 +505,7 @@ describe("DEPLOYMENT", async () => {
             })
 
             it("STAKING:- testing calculateRewards function ",async() =>{
+              // here we are just test with generally not with the flow of the code
               const calculateRewards = await staking.calculateRewards(price)
          })
 
